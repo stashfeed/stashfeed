@@ -91,6 +91,7 @@ import gomeng.dev.stashplayer.core.ui.theme.StashUiScaleProvider
 import gomeng.dev.stashplayer.feature.gallery.GalleryDetailRoute
 import gomeng.dev.stashplayer.feature.gallery.GalleryPhotoViewerOverlay
 import gomeng.dev.stashplayer.feature.gallery.GalleryRoute
+import gomeng.dev.stashplayer.feature.feed.HomeFeedRoute
 import gomeng.dev.stashplayer.feature.home.HomeRoute
 import gomeng.dev.stashplayer.feature.library.LibraryRoute
 import gomeng.dev.stashplayer.feature.performers.PerformerProfileRoute
@@ -122,6 +123,7 @@ private enum class TopLevelDestination(
 /** Screens that used to be tabs; they now open from Explore or Library. */
 private const val GalleryRoutePath = "gallery"
 private const val QueueRoutePath = "queue"
+private const val LegacyHomeRoutePath = "home/dashboard"
 
 private data class ActiveGalleryPhotoViewer(
     val initialIndex: Int,
@@ -500,6 +502,17 @@ fun StashNavHost(
                         )
                     }
                     composable(TopLevelDestination.Home.route) {
+                        HomeFeedRoute(
+                            isFoldLikeLayout = isFoldLikeLayout,
+                            onOpenScene = { sceneId, scenes -> openPlaybackQueueScene(sceneId = sceneId, scenes = scenes) },
+                            onOpenGallery = { galleryId -> navController.navigate(galleryDetailRouteForGallery(galleryId)) },
+                            onOpenPerformer = { performerId ->
+                                navController.navigate(performerProfileRouteForPerformer(performerId))
+                            },
+                        )
+                    }
+                    // The original dashboard-style home stays reachable for its resume / queue shortcuts.
+                    composable(LegacyHomeRoutePath) {
                         HomeRoute(
                             isFoldLikeLayout = isFoldLikeLayout,
                             onOpenScene = { sceneId, scenes, randomShuffle ->
@@ -608,6 +621,7 @@ fun StashNavHost(
                             hasAvailableUpdate = availableUpdateNotice != null,
                             onOpenQueue = { navigateSecondary(QueueRoutePath) },
                             onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
+                            onOpenDashboard = { navigateSecondary(LegacyHomeRoutePath) },
                         )
                     }
                     composable(GalleryRoutePath) {
@@ -817,6 +831,7 @@ private fun isTopLevelDestinationSelected(
 ): Boolean = when (destination) {
     TopLevelDestination.Library -> currentRoute == destination.route ||
         currentRoute == QueueRoutePath ||
+        currentRoute == LegacyHomeRoutePath ||
         SettingsDestinations.isSettingsRoute(currentRoute)
     TopLevelDestination.Explore -> hierarchyRoutes?.any { it == destination.route } == true ||
         currentRoute == GalleryRoutePath ||

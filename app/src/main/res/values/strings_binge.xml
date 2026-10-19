@@ -7,12 +7,55 @@
     <string name="navigation_library_label">Library</string>
     <string name="explore_segment_videos">Videos</string>
     <string name="explore_segment_photos">Photos</string>
+    <string name="library_dashboard_title">Continue watching</string>
+    <string name="library_dashboard_subtitle">Resume, recent and Stash sections</string>
     <string name="library_queue_title">Up next</string>
     <string name="library_watch_later_title">Watch later</string>
     <string name="library_favorites_title">Favorites</string>
     <string name="library_history_title">History</string>
     <string name="library_item_count">%1$d items</string>
     <string name="library_settings_subtitle">Server, playback, appearance</string>
+
+    <!-- Home feed -->
+    <string name="home_feed_title">Home</string>
+    <string name="home_feed_window">New in the last %1$d days</string>
+    <string name="home_feed_refresh">Refresh</string>
+    <string name="home_feed_settings">Feed settings</string>
+    <string name="home_feed_error_title">Couldn\'t load the feed</string>
+    <string name="home_feed_empty_title">Nothing new</string>
+    <string name="home_feed_empty_message">Nothing was added in the last %1$d days. Pick a longer window in the feed settings.</string>
+    <string name="home_feed_unidentified_hidden">%1$d new scenes without a performer are hidden.</string>
+    <string name="home_feed_repost_badge">Repost</string>
+    <string name="home_feed_pack_badge">%1$d new scenes</string>
+    <string name="home_feed_added_today">today</string>
+    <string name="home_feed_added_yesterday">yesterday</string>
+    <string name="home_feed_added_days_ago">%1$d days ago</string>
+    <string name="home_feed_days">%1$d days</string>
+    <string name="home_feed_settings_window">Recent window</string>
+    <string name="home_feed_settings_window_hint">How far back the feed and stories look.</string>
+    <string name="home_feed_settings_show">Show in feed</string>
+    <string name="home_feed_settings_show_hint">Reposts are older releases you added recently. Packs bundle 8+ scenes of one performer added within a week.</string>
+    <string name="home_feed_settings_genders">Genders for stories and packs</string>
+    <string name="home_feed_settings_genders_hint">Performers of other genders still show on the posts they appear in.</string>
+    <string name="home_feed_settings_folders">Gallery folders to ignore</string>
+    <string name="home_feed_settings_folders_hint">Comma-separated; a trailing * matches by prefix, e.g. screen*.</string>
+    <string name="home_feed_settings_save">Save</string>
+    <string name="home_feed_filter_title">Filter the feed</string>
+    <string name="home_feed_filter_hint">Shows posts with any of the selected performers, tags or studios.</string>
+    <string name="home_story_mute">Mute</string>
+    <string name="home_story_unmute">Unmute</string>
+    <string name="home_story_watch_full">Watch full scene</string>
+    <string name="home_feed_kind_posts">Posts</string>
+    <string name="home_feed_kind_reposts">Reposts</string>
+    <string name="home_feed_kind_packs">Packs</string>
+    <string name="home_feed_kind_galleries">Galleries</string>
+    <string name="home_feed_kind_unidentified">Without performer</string>
+    <string name="gender_female">Female</string>
+    <string name="gender_male">Male</string>
+    <string name="gender_transgender_female">Trans female</string>
+    <string name="gender_transgender_male">Trans male</string>
+    <string name="gender_non_binary">Non-binary</string>
+    <string name="gender_intersex">Intersex</string>
 
     <!-- For You reel -->
     <string name="for_you_title">For You</string>

@@ -2,6 +2,8 @@ package gomeng.dev.stashplayer.core.network
 
 import android.net.Uri
 import gomeng.dev.stashplayer.core.model.SceneBulkDeleteResult
+import gomeng.dev.stashplayer.core.model.FeedGallery
+import gomeng.dev.stashplayer.core.model.FeedScene
 import gomeng.dev.stashplayer.core.model.PerformerDetailModel
 import gomeng.dev.stashplayer.core.model.PerformerListScope
 import gomeng.dev.stashplayer.core.model.PerformerListSort
@@ -510,6 +512,24 @@ class StashGraphQlClient(
     /** Following a performer in this app = Stash's favorite flag, so it stays in sync with the Binge plugin. */
     suspend fun setPerformerFavorite(performerId: String, favorite: Boolean): Boolean = parsePerformerSetFavoriteResponse(
         execute(PERFORMER_SET_FAVORITE_MUTATION, mapOf("id" to performerId.trim(), "favorite" to favorite)),
+    )
+
+    suspend fun findHomeFeedScenes(
+        field: HomeFeedWindowField,
+        since: String,
+        extraFilter: Map<String, Any?> = emptyMap(),
+    ): List<FeedScene> = parseHomeFeedScenesResponse(
+        execute(HOME_FEED_SCENES_QUERY, buildHomeFeedScenesVariables(field, since, extraFilter)),
+        resolveUrl = profile::authenticatedUrl,
+    )
+
+    suspend fun findHomeFeedGalleries(
+        field: HomeFeedWindowField,
+        since: String,
+        extraFilter: Map<String, Any?> = emptyMap(),
+    ): List<FeedGallery> = parseHomeFeedGalleriesResponse(
+        execute(HOME_FEED_GALLERIES_QUERY, buildHomeFeedGalleriesVariables(field, since, extraFilter)),
+        resolveUrl = profile::authenticatedUrl,
     )
 
     suspend fun findSceneEntities(

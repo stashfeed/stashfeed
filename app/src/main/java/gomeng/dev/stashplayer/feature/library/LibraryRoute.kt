@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.WatchLater
 import androidx.compose.material3.Badge
@@ -41,6 +42,7 @@ fun LibraryRoute(
     hasAvailableUpdate: Boolean,
     onOpenQueue: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenDashboard: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val repository = remember(context) { StashLocalLibraryRepository(context) }
@@ -59,6 +61,12 @@ fun LibraryRoute(
         verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
     ) {
         Text(stashString(R.string.navigation_library_label), style = MaterialTheme.typography.headlineLarge)
+        LibraryEntry(
+            icon = Icons.Outlined.PlayCircleOutline,
+            title = stashString(R.string.library_dashboard_title),
+            subtitle = stashString(R.string.library_dashboard_subtitle),
+            onClick = onOpenDashboard,
+        )
         LibraryEntry(
             icon = Icons.AutoMirrored.Outlined.PlaylistPlay,
             title = stashString(R.string.library_queue_title),
