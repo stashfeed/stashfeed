@@ -67,6 +67,8 @@ data class StashVideoFilterState(
     val randomShuffle: Boolean = false,
     val randomShuffleSeed: Int? = null,
     val savedFilter: StashSavedFilterRef? = null,
+    /** Match scenes with any selected tag instead of all of them (the For You feed works this way). */
+    val tagsMatchAny: Boolean = false,
 ) {
     val isEmpty: Boolean get() = activeFilterChips().isEmpty()
     val activeFilterCount: Int get() = activeFilterChips().size

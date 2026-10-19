@@ -3,6 +3,7 @@ package gomeng.dev.stashplayer.core.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -25,8 +26,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -48,15 +49,17 @@ import gomeng.dev.stashplayer.core.ui.designsystem.StashVisibilityFilterChip
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 import kotlinx.coroutines.delay
 
-private const val PEOPLE_FILTER_SEARCH_DEBOUNCE_MS = 250L
+private const val ENTITY_FILTER_SEARCH_DEBOUNCE_MS = 250L
 
-private enum class PeopleFilterTab { Performers, Studios }
+/** One tab of [StashMultiEntityFilterSheet]: a server search plus the current selection for it. */
+data class StashEntityFilterTab(
+    val label: String,
+    val searchLabel: String,
+    val selected: List<StashSelectedEntity>,
+    val search: suspend (String) -> List<StashSelectedEntity>,
+)
 
-/**
- * Picks performers and studios for a video filter. Loads its own options through [searchPerformers] /
- * [searchStudios] so callers only have to hand over the server search.
- */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+/** Picks performers and studios for a video filter (Explore). */
 @Composable
 fun StashPeopleFilterSheet(
     videoFilter: StashVideoFilterState,
@@ -65,37 +68,70 @@ fun StashPeopleFilterSheet(
     onApply: (performers: List<StashSelectedEntity>, studios: List<StashSelectedEntity>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var selectedTab by remember { mutableIntStateOf(PeopleFilterTab.Performers.ordinal) }
-    val tab = PeopleFilterTab.entries[selectedTab]
-    var performersDraft by remember(videoFilter.performers) { mutableStateOf(videoFilter.performers) }
-    var studiosDraft by remember(videoFilter.studios) { mutableStateOf(videoFilter.studios) }
-    var query by remember(tab) { mutableStateOf("") }
-    var options by remember(tab) { mutableStateOf<List<StashSelectedEntity>>(emptyList()) }
-    var isLoading by remember(tab) { mutableStateOf(false) }
-    var error by remember(tab) { mutableStateOf<String?>(null) }
+    StashMultiEntityFilterSheet(
+        title = stashString(R.string.video_filter_people_title),
+        hint = stashString(R.string.people_filter_hint),
+        tabs = listOf(
+            StashEntityFilterTab(
+                label = stashString(R.string.people_filter_tab_performers),
+                searchLabel = stashString(R.string.people_filter_search_performers),
+                selected = videoFilter.performers,
+                search = searchPerformers,
+            ),
+            StashEntityFilterTab(
+                label = stashString(R.string.people_filter_tab_studios),
+                searchLabel = stashString(R.string.people_filter_search_studios),
+                selected = videoFilter.studios,
+                search = searchStudios,
+            ),
+        ),
+        onApply = { selections -> onApply(selections[0], selections[1]) },
+        onDismiss = onDismiss,
+    )
+}
+
+/**
+ * Bottom sheet with one searchable entity picker per tab. Each tab loads its own options through
+ * [StashEntityFilterTab.search]; [onApply] receives the selections in tab order.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun StashMultiEntityFilterSheet(
+    title: String,
+    hint: String,
+    tabs: List<StashEntityFilterTab>,
+    onApply: (List<List<StashSelectedEntity>>) -> Unit,
+    onDismiss: () -> Unit,
+    extraContent: (@Composable ColumnScope.() -> Unit)? = null,
+    onReset: () -> Unit = {},
+) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tab = tabs[selectedTab]
+    var drafts by remember(tabs.map { it.selected }) { mutableStateOf(tabs.map { it.selected }) }
+    var query by remember(selectedTab) { mutableStateOf("") }
+    var options by remember(selectedTab) { mutableStateOf<List<StashSelectedEntity>>(emptyList()) }
+    var isLoading by remember(selectedTab) { mutableStateOf(false) }
+    var error by remember(selectedTab) { mutableStateOf<String?>(null) }
     var retryToken by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(tab, query, retryToken) {
-        delay(PEOPLE_FILTER_SEARCH_DEBOUNCE_MS)
+    LaunchedEffect(selectedTab, query, retryToken) {
+        delay(ENTITY_FILTER_SEARCH_DEBOUNCE_MS)
         isLoading = true
         error = null
-        runCatching {
-            when (tab) {
-                PeopleFilterTab.Performers -> searchPerformers(query)
-                PeopleFilterTab.Studios -> searchStudios(query)
-            }
-        }.onSuccess { options = it }
+        runCatching { tab.search(query) }
+            .onSuccess { options = it }
             .onFailure { error = it.message.orEmpty() }
         isLoading = false
     }
 
-    val draft = if (tab == PeopleFilterTab.Performers) performersDraft else studiosDraft
+    val draft = drafts[selectedTab]
     fun toggle(entity: StashSelectedEntity) {
         val updated = if (draft.any { it.id == entity.id }) draft.filterNot { it.id == entity.id } else draft + entity
-        if (tab == PeopleFilterTab.Performers) performersDraft = updated else studiosDraft = updated
+        drafts = drafts.toMutableList().also { it[selectedTab] = updated }
     }
     val selectedIds = draft.map { it.id }.toSet()
     val orderedOptions = (draft + options).distinctBy { it.id }
+    val totalSelected = drafts.sumOf { it.size }
 
     // Fully expanded right away: half-open, the Apply row sits under the system navigation bar.
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -113,9 +149,9 @@ fun StashPeopleFilterSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(stashString(R.string.video_filter_people_title), style = MaterialTheme.typography.titleLarge)
+                    Text(title, style = MaterialTheme.typography.titleLarge)
                     Text(
-                        text = stashString(R.string.people_filter_hint),
+                        text = hint,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -124,17 +160,14 @@ fun StashPeopleFilterSheet(
                     Icon(Icons.Outlined.Close, contentDescription = stashString(R.string.auto_kr_0192))
                 }
             }
-            TabRow(selectedTabIndex = selectedTab) {
-                PeopleFilterTab.entries.forEach { entry ->
-                    val count = if (entry == PeopleFilterTab.Performers) performersDraft.size else studiosDraft.size
-                    val label = when (entry) {
-                        PeopleFilterTab.Performers -> stashString(R.string.people_filter_tab_performers)
-                        PeopleFilterTab.Studios -> stashString(R.string.people_filter_tab_studios)
-                    }
+            extraContent?.invoke(this)
+            ScrollableTabRow(selectedTabIndex = selectedTab, edgePadding = 0.dp) {
+                tabs.forEachIndexed { index, entry ->
+                    val count = drafts[index].size
                     Tab(
-                        selected = selectedTab == entry.ordinal,
-                        onClick = { selectedTab = entry.ordinal },
-                        text = { Text(if (count > 0) "$label ($count)" else label) },
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(if (count > 0) "${entry.label} ($count)" else entry.label) },
                     )
                 }
             }
@@ -143,14 +176,7 @@ fun StashPeopleFilterSheet(
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = {
-                    Text(
-                        when (tab) {
-                            PeopleFilterTab.Performers -> stashString(R.string.people_filter_search_performers)
-                            PeopleFilterTab.Studios -> stashString(R.string.people_filter_search_studios)
-                        },
-                    )
-                },
+                label = { Text(tab.searchLabel) },
             )
             if (draft.isNotEmpty()) {
                 FlowRow(
@@ -207,23 +233,22 @@ fun StashPeopleFilterSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = stashString(R.string.people_filter_selected_count, performersDraft.size + studiosDraft.size),
+                    text = stashString(R.string.people_filter_selected_count, totalSelected),
                     modifier = Modifier.weight(1f),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedButton(
                     onClick = {
-                        performersDraft = emptyList()
-                        studiosDraft = emptyList()
+                        drafts = tabs.map { emptyList() }
+                        onReset()
                     },
-                    enabled = performersDraft.isNotEmpty() || studiosDraft.isNotEmpty(),
                 ) {
                     Text(stashString(R.string.auto_kr_0374))
                 }
                 Button(
                     onClick = {
-                        onApply(performersDraft, studiosDraft)
+                        onApply(drafts)
                         onDismiss()
                     },
                 ) {

@@ -133,7 +133,7 @@ private fun JSONObject.toPerformerCardOrNull(resolveUrl: (String) -> String): Pe
 }
 
 /** Returns the GraphQL `data` object, throwing the server's first error message when there is one. */
-private fun parseGraphQlData(json: String): JSONObject {
+internal fun parseGraphQlData(json: String): JSONObject {
     val root = JSONObject(json)
     root.optJSONArray("errors")?.takeIf { it.length() > 0 }?.let { errors ->
         val message = errors.optJSONObject(0)?.optString("message").orEmpty().ifBlank { "Stash GraphQL error" }

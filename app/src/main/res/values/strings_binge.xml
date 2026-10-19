@@ -14,6 +14,25 @@
     <string name="library_item_count">%1$d items</string>
     <string name="library_settings_subtitle">Server, playback, appearance</string>
 
+    <!-- For You reel -->
+    <string name="for_you_title">For You</string>
+    <string name="for_you_mode_random">Random</string>
+    <string name="for_you_mode_chained">Chained</string>
+    <string name="for_you_filter">Filter</string>
+    <string name="for_you_filter_with_count">Filter (%1$d)</string>
+    <string name="for_you_filter_title">Filter the reel</string>
+    <string name="for_you_filter_hint">Shows scenes with any of the selected performers, tags or studios.</string>
+    <string name="for_you_filter_tab_tags">Tags</string>
+    <string name="for_you_filter_search_tags">Search tags</string>
+    <string name="for_you_shorts_only">Short clips only (up to %1$d s)</string>
+    <string name="for_you_o_counter">O counter %1$d. Tap to add, hold to remove.</string>
+    <string name="for_you_rate">Rate scene</string>
+    <string name="for_you_rate_title">Rate scene</string>
+    <string name="for_you_rate_clear">Clear rating</string>
+    <string name="for_you_open_full">Open full scene</string>
+    <string name="for_you_action_failed">Couldn\'t update the scene: %1$s</string>
+    <string name="for_you_with_performers">with %1$s</string>
+
     <!-- Video filter: performers & studios -->
     <string name="video_filter_people_title">Performers &amp; studios</string>
     <string name="video_filter_people_empty_summary">Any performer or studio</string>

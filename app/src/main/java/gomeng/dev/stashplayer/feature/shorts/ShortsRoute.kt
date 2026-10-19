@@ -21,6 +21,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.OpenInFull
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Refresh
@@ -55,10 +56,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import gomeng.dev.stashplayer.R
 import gomeng.dev.stashplayer.core.local.StashLocalLibraryRepository
 import gomeng.dev.stashplayer.core.model.DEFAULT_STASH_SHORTS_PAGE_SIZE
+import gomeng.dev.stashplayer.core.model.FOR_YOU_CHAINED_RELATED_PAGE_SIZE
+import gomeng.dev.stashplayer.core.model.ForYouChainedFeed
+import gomeng.dev.stashplayer.core.model.ForYouMode
+import gomeng.dev.stashplayer.core.model.SceneCardModel
+import gomeng.dev.stashplayer.core.model.withStashRandomShuffleSeed
 import gomeng.dev.stashplayer.core.model.SceneBulkDeleteConfirmationState
 import gomeng.dev.stashplayer.core.model.ShortsActionRailButton
 import gomeng.dev.stashplayer.core.model.STASH_SHORTS_PLAYBACK_FEEDBACK_VISIBLE_MS
@@ -69,7 +76,6 @@ import gomeng.dev.stashplayer.core.model.ShortsInteractionOutcome
 import gomeng.dev.stashplayer.core.model.buildShortsRecommendationSignals
 import gomeng.dev.stashplayer.core.model.applyShortsFeedbackToItems
 import gomeng.dev.stashplayer.core.model.appendDistinctShortsPage
-import gomeng.dev.stashplayer.core.model.buildShortsVideoFilter
 import gomeng.dev.stashplayer.core.model.mergeLikedAnchorHybridScores
 import gomeng.dev.stashplayer.core.model.nextStashRandomSortSeed
 import gomeng.dev.stashplayer.core.model.rankShortsCandidates
@@ -102,26 +108,37 @@ import gomeng.dev.stashplayer.feature.player.PlayerSurface
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** How many scenes the chain picks per batch; small so later picks use fresher signals. */
+private const val FOR_YOU_CHAINED_BATCH_SIZE = 8
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ShortsRoute(
     isFoldLikeLayout: Boolean,
+    onOpenPerformer: (String) -> Unit = {},
+    onOpenSceneInPlayer: (sceneId: String, scenes: List<SceneCardModel>) -> Unit = { _, _ -> },
 ) {
     val context = LocalContext.current
     val settingsRepository = remember(context) { StashSettingsRepository(context) }
     val localRepository = remember(context) { StashLocalLibraryRepository(context) }
     val profile by settingsRepository.serverProfile.collectAsState(initial = null)
-    val shortsMaxDurationSeconds by settingsRepository.shortsMaxDurationSeconds.collectAsState(
-        initial = StashSettingsRepository.DEFAULT_SHORTS_MAX_DURATION_SECONDS,
-    )
+    val persistedShortsMaxDurationSeconds by settingsRepository.shortsMaxDurationSeconds.collectAsState(initial = null)
+    val shortsMaxDurationSeconds = persistedShortsMaxDurationSeconds
+        ?: StashSettingsRepository.DEFAULT_SHORTS_MAX_DURATION_SECONDS
     val shortsInteractions by localRepository.shortsInteractions.collectAsState(initial = emptyList())
     val favoriteSceneIds by localRepository.favoriteSceneIds.collectAsState(initial = emptySet())
     val watchLaterSceneIds by localRepository.watchLaterSceneIds.collectAsState(initial = emptySet())
     val activeProfile = profile
     val scope = rememberCoroutineScope()
-    val seed = remember { nextStashRandomSortSeed() }
-    val videoFilter = remember(seed, shortsMaxDurationSeconds) {
-        buildShortsVideoFilter(seed = seed, maxDurationSeconds = shortsMaxDurationSeconds)
+    val forYouState: ForYouViewModel = viewModel()
+    val config = forYouState.config
+    // Wait until the stored profile and setting are loaded: their brief "not loaded yet" values would
+    // otherwise look like a change and throw away the feed every time the screen comes back.
+    val settingsLoaded = profile != null && persistedShortsMaxDurationSeconds != null
+    if (settingsLoaded) forYouState.resetFeedIfChanged(listOf(activeProfile, shortsMaxDurationSeconds, config))
+    val seed = forYouState.seed
+    val videoFilter = remember(seed, shortsMaxDurationSeconds, config) {
+        config.baseVideoFilter(shortsMaxDurationSeconds).withStashRandomShuffleSeed(seed)
     }
     var likedAnchorHybridScores by remember(activeProfile) { mutableStateOf<Map<String, Double>>(emptyMap()) }
     val recommendationSignals = remember(
@@ -137,8 +154,9 @@ fun ShortsRoute(
             likedAnchorHybridScores = likedAnchorHybridScores,
         )
     }
-    var feedState by remember(activeProfile, seed, shortsMaxDurationSeconds) { mutableStateOf(ShortsFeedState()) }
-    var requestSerial by remember(activeProfile, seed, shortsMaxDurationSeconds) { mutableLongStateOf(0L) }
+    var feedState by forYouState::feedState
+    var requestSerial by remember(activeProfile, seed, shortsMaxDurationSeconds, config) { mutableLongStateOf(0L) }
+    var actionErrorMessage by remember { mutableStateOf<String?>(null) }
     var poolRevision by remember(activeProfile) { mutableIntStateOf(0) }
     var retryToken by remember { mutableIntStateOf(0) }
     var pagerScrollRequests by remember { mutableIntStateOf(-1) }
@@ -146,6 +164,52 @@ fun ShortsRoute(
     var deleteTargetSceneId by remember { mutableStateOf<String?>(null) }
     var deleteErrorMessage by remember { mutableStateOf<String?>(null) }
     val client = remember(activeProfile) { activeProfile?.let(::StashGraphQlClient) }
+    // Chained mode: the first page is a normal random page, every later batch comes from the chain.
+    val chainedFeed = forYouState.chainedFeedFor(listOf(activeProfile, videoFilter, config.mode)) {
+        val activeClient = client
+        if (config.mode != ForYouMode.Chained || activeClient == null) {
+            null
+        } else {
+            ForYouChainedFeed(
+                fetchRelated = { filter ->
+                    activeClient.findSceneCardsPage(
+                        perPage = FOR_YOU_CHAINED_RELATED_PAGE_SIZE,
+                        sort = "random",
+                        videoFilter = filter.copy(randomShuffle = true, randomShuffleSeed = nextStashRandomSortSeed()),
+                    ).scenes
+                },
+                // Same page size as page 1 so the seeded random pages line up.
+                fetchRandomPage = { page, _ ->
+                    activeClient.findSceneCardsPage(
+                        perPage = DEFAULT_STASH_SHORTS_PAGE_SIZE,
+                        page = page,
+                        sort = "updated_at",
+                        videoFilter = videoFilter,
+                    ).scenes
+                },
+                relatedBaseFilter = videoFilter.copy(randomShuffle = false, randomShuffleSeed = null),
+                firstRandomPage = 2,
+            )
+        }
+    }
+
+    fun updateFeedScene(sceneId: String, transform: (SceneCardModel) -> SceneCardModel) {
+        feedState = feedState.copy(
+            items = feedState.items.map { item -> if (item.scene.id == sceneId) item.copy(scene = transform(item.scene)) else item },
+        )
+    }
+
+    fun runSceneAction(action: suspend (StashGraphQlClient) -> Unit) {
+        val activeClient = client ?: return
+        scope.launch {
+            runCatching { action(activeClient) }.onFailure { throwable ->
+                actionErrorMessage = stashString(
+                    R.string.for_you_action_failed,
+                    redactStashCredentialText(throwable.message ?: throwable::class.simpleName.orEmpty()),
+                )
+            }
+        }
+    }
     val similarScenesRepository = remember(activeProfile) {
         activeProfile?.let { serverProfile ->
             buildSimilarScenesRepository(StashGraphQlClient(serverProfile), serverProfile)
@@ -185,6 +249,30 @@ fun ShortsRoute(
         val requestId = requestSerial + 1L
         requestSerial = requestId
         feedState = if (reset) ShortsFeedState().loading() else feedState.loading()
+        val chained = chainedFeed
+        if (page > 1 && chained != null) {
+            scope.launch {
+                runCatching { chained.nextBatch(FOR_YOU_CHAINED_BATCH_SIZE) }
+                    .onSuccess { batch ->
+                        if (requestSerial != requestId) return@onSuccess
+                        val appended = appendDistinctShortsPage(feedState.items, batch)
+                        feedState = feedState.copy(
+                            items = appended,
+                            nextPage = page + 1,
+                            hasMore = batch.isNotEmpty(),
+                            status = if (appended.isEmpty()) ShortsFeedStatus.Empty else ShortsFeedStatus.Ready,
+                            errorMessage = null,
+                        )
+                    }
+                    .onFailure { throwable ->
+                        if (requestSerial != requestId) return@onFailure
+                        feedState = feedState.failed(
+                            redactStashCredentialText(throwable.message ?: throwable::class.simpleName.orEmpty()),
+                        )
+                    }
+            }
+            return
+        }
         scope.launch {
             runCatching {
                 activeClient.findSceneCardsPage(
@@ -195,6 +283,7 @@ fun ShortsRoute(
                     )
             }.onSuccess { result ->
                 if (requestSerial != requestId) return@onSuccess
+                if (page == 1) chained?.markVisited(result.scenes.map { it.id })
                 feedState = if (page == 1) {
                     val ranked = rankShortsCandidates(
                         candidates = result.scenes,
@@ -205,7 +294,10 @@ fun ShortsRoute(
                         scenes = result.scenes,
                         totalCount = result.totalCount,
                         perPage = DEFAULT_STASH_SHORTS_PAGE_SIZE,
-                    ).copy(items = ranked)
+                    ).let { first ->
+                        // The chain keeps going as long as it finds scenes, beyond the first page's total.
+                        first.copy(items = ranked, hasMore = first.hasMore || (chained != null && ranked.isNotEmpty()))
+                    }
                 } else {
                     val appended = appendDistinctShortsPage(feedState.items, result.scenes)
                     val appendedState = feedState.copy(
@@ -232,8 +324,9 @@ fun ShortsRoute(
         }
     }
 
-    LaunchedEffect(activeProfile, seed, shortsMaxDurationSeconds) {
-        if (activeProfile != null) {
+    LaunchedEffect(settingsLoaded, activeProfile, seed, shortsMaxDurationSeconds, config) {
+        // Coming back to a feed that's already loaded keeps it (and the position) as it was.
+        if (settingsLoaded && feedState.items.isEmpty()) {
             loadShortsPage(page = 1, reset = true)
         }
     }
@@ -263,7 +356,8 @@ fun ShortsRoute(
     }
 
     LaunchedEffect(recommendationSignals, seed) {
-        if (feedState.items.isNotEmpty()) {
+        // In Chained mode the order is the chain itself; re-ranking would break it.
+        if (feedState.items.isNotEmpty() && config.mode == ForYouMode.Random) {
             val interactionByScene = shortsInteractions.associateBy { it.sceneId }
             val withFeedback = feedState.items.map { item ->
                 item.copy(
@@ -288,6 +382,28 @@ fun ShortsRoute(
         return
     }
 
+    if (forYouState.isFilterOpen) {
+        ForYouFilterSheet(
+            config = config,
+            shortsMaxDurationSeconds = shortsMaxDurationSeconds,
+            client = client,
+            onApply = { forYouState.config = it },
+            onDismiss = { forYouState.isFilterOpen = false },
+        )
+    }
+    forYouState.ratingTarget?.let { target ->
+        ForYouRatingDialog(
+            scene = target,
+            onRate = { rating100 ->
+                forYouState.ratingTarget = null
+                updateFeedScene(target.id) { it.copy(rating100 = rating100) }
+                runSceneAction { it.updateSceneRating(target.id, rating100) }
+            },
+            onDismiss = { forYouState.ratingTarget = null },
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
     when {
         feedState.items.isEmpty() && feedState.status == ShortsFeedStatus.Loading -> {
             ShortsMessageSurface(
@@ -316,7 +432,7 @@ fun ShortsRoute(
             )
         }
         else -> {
-            val pagerState = rememberPagerState { feedState.items.size }
+            val pagerState = rememberPagerState(initialPage = feedState.activeIndex.coerceAtLeast(0)) { feedState.items.size }
 
             LaunchedEffect(pagerState, feedState.items.size, feedState.hasMore, feedState.nextPage) {
                 snapshotFlow { pagerState.currentPage }.collect { page ->
@@ -342,6 +458,9 @@ fun ShortsRoute(
             }
 
             val activeItem = feedState.items.getOrNull(feedState.activeIndex)
+            LaunchedEffect(activeItem?.scene?.id, chainedFeed) {
+                activeItem?.scene?.let { scene -> chainedFeed?.onPlay(scene) }
+            }
             val windowSceneIds = remember(feedState.items, feedState.activeIndex) {
                 shortsControllerWindowSceneIds(feedState.items, feedState.activeIndex)
             }
@@ -403,7 +522,7 @@ fun ShortsRoute(
                             )
                             scope.launch {
                                 localRepository.setShortsExplicitFeedback(item.scene, nextFeedback)
-                                if (nextFeedback == ShortsExplicitFeedback.Liked) {
+                                if (nextFeedback == ShortsExplicitFeedback.Liked && config.shortsOnly) {
                                     runCatching {
                                         client?.ensureShortsTagOnScene(item.scene)
                                     }.onFailure {
@@ -456,6 +575,30 @@ fun ShortsRoute(
                             if (next in feedState.items.indices) {
                                 scope.launch { pagerState.animateScrollToPage(next) }
                             }
+                        },
+                        onIncrementO = {
+                            val sceneId = item.scene.id
+                            updateFeedScene(sceneId) { it.copy(oCounter = (it.oCounter ?: 0) + 1) }
+                            runSceneAction { activeClient ->
+                                val count = activeClient.addO(sceneId)
+                                updateFeedScene(sceneId) { it.copy(oCounter = count) }
+                            }
+                        },
+                        onDecrementO = {
+                            val sceneId = item.scene.id
+                            if ((item.scene.oCounter ?: 0) > 0) {
+                                updateFeedScene(sceneId) { it.copy(oCounter = ((it.oCounter ?: 0) - 1).coerceAtLeast(0)) }
+                                runSceneAction { activeClient ->
+                                    val count = activeClient.deleteO(sceneId)
+                                    updateFeedScene(sceneId) { it.copy(oCounter = count) }
+                                }
+                            }
+                        },
+                        onRate = { forYouState.ratingTarget = item.scene },
+                        onOpenPerformer = onOpenPerformer,
+                        onOpenFull = {
+                            activeController?.player?.pause()
+                            onOpenSceneInPlayer(item.scene.id, feedState.items.map { it.scene })
                         },
                     )
                 }
@@ -545,6 +688,29 @@ fun ShortsRoute(
             }
         }
     }
+        ForYouHeader(
+            config = config,
+            onSelectMode = { mode -> forYouState.config = config.copy(mode = mode) },
+            onOpenFilter = { forYouState.isFilterOpen = true },
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
+        actionErrorMessage?.let { message ->
+            LaunchedEffect(message) {
+                delay(3_000L)
+                actionErrorMessage = null
+            }
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 120.dp)
+                    .background(Color.Black.copy(alpha = 0.72f), MaterialTheme.shapes.small)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
+    }
 }
 
 @Composable
@@ -562,6 +728,11 @@ private fun ShortsPage(
     onRecordSkip: (watchMs: Long, progress: Float) -> Unit,
     onRetry: () -> Unit,
     onSkip: () -> Unit,
+    onIncrementO: () -> Unit,
+    onDecrementO: () -> Unit,
+    onRate: () -> Unit,
+    onOpenPerformer: (String) -> Unit,
+    onOpenFull: () -> Unit,
 ) {
     var positionMs by remember(activeController) { mutableLongStateOf(0L) }
     var durationMs by remember(activeController) { mutableLongStateOf(0L) }
@@ -774,9 +945,15 @@ private fun ShortsPage(
             ShortsActionRail(
                 liked = item.explicitFeedback == ShortsExplicitFeedback.Liked,
                 notInterested = item.explicitFeedback == ShortsExplicitFeedback.NotInterested,
+                oCounter = item.scene.oCounter ?: 0,
+                rating100 = item.scene.rating100,
                 onLike = onLike,
                 onNotInterested = onNotInterested,
                 onDelete = onDelete,
+                onIncrementO = onIncrementO,
+                onDecrementO = onDecrementO,
+                onRate = onRate,
+                onOpenFull = onOpenFull,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(end = 12.dp),
@@ -817,6 +994,7 @@ private fun ShortsPage(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            ForYouPerformerLinks(performers = item.scene.performerChips, onOpenPerformer = onOpenPerformer)
             ReusablePlayerSeekRow(
                 displayedPositionMs = resolveShortsSeekTarget(sliderFraction, durationMs),
                 durationMs = durationMs,
@@ -840,9 +1018,15 @@ private fun ShortsPage(
 private fun ShortsActionRail(
     liked: Boolean,
     notInterested: Boolean,
+    oCounter: Int,
+    rating100: Int?,
     onLike: () -> Unit,
     onNotInterested: () -> Unit,
     onDelete: () -> Unit,
+    onIncrementO: () -> Unit,
+    onDecrementO: () -> Unit,
+    onRate: () -> Unit,
+    onOpenFull: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -850,6 +1034,15 @@ private fun ShortsActionRail(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        ForYouOCounterButton(count = oCounter, onIncrement = onIncrementO, onDecrement = onDecrementO)
+        ForYouRatingButton(rating100 = rating100, onClick = onRate)
+        IconButton(onClick = onOpenFull) {
+            Icon(
+                imageVector = Icons.Outlined.OpenInFull,
+                contentDescription = stashString(R.string.for_you_open_full),
+                tint = Color.White,
+            )
+        }
         shortsActionRailButtons().forEach { button ->
             when (button) {
                 ShortsActionRailButton.Like -> {

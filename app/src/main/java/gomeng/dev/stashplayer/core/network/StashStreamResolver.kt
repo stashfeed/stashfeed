@@ -618,6 +618,10 @@ class StashGraphQlClient(
         return parseSceneAddOResponse(execute(ADD_O_MUTATION, mapOf("id" to sceneId)))
     }
 
+    suspend fun deleteO(sceneId: String): Int {
+        return parseSceneDeleteOResponse(execute(SCENE_DELETE_O_MUTATION, mapOf("id" to sceneId)))
+    }
+
     suspend fun updateSceneRating(sceneId: String, rating100: Int?): Boolean {
         return parseSceneRatingUpdateResponse(execute(SCENE_UPDATE_MUTATION, buildSceneRatingUpdateVariables(sceneId, rating100)))
     }
@@ -1324,7 +1328,7 @@ private fun StashVideoFilterState.toGraphQlSceneFilterOrNull(): Map<String, Any?
             "tags",
             mapOf(
                 "value" to selectedTags.map { it.id },
-                "modifier" to "INCLUDES_ALL",
+                "modifier" to if (tagsMatchAny) "INCLUDES" else "INCLUDES_ALL",
             ),
         )
     }

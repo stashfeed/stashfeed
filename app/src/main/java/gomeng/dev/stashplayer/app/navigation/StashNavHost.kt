@@ -565,6 +565,12 @@ fun StashNavHost(
                     composable(TopLevelDestination.ForYou.route) {
                         ShortsRoute(
                             isFoldLikeLayout = isFoldLikeLayout,
+                            onOpenPerformer = { performerId ->
+                                navController.navigate(performerProfileRouteForPerformer(performerId))
+                            },
+                            onOpenSceneInPlayer = { sceneId, scenes ->
+                                openPlaybackQueueScene(sceneId = sceneId, scenes = scenes)
+                            },
                         )
                     }
                     composable(TopLevelDestination.Performers.route) {
