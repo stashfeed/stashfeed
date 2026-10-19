@@ -14,10 +14,12 @@ import gomeng.dev.stashplayer.core.discovery.clearStashDiscoveryFilterSection
 import gomeng.dev.stashplayer.core.discovery.toFilterSheetVisibility
 import gomeng.dev.stashplayer.core.local.LocalSavedVideoFilter
 import gomeng.dev.stashplayer.core.local.appliedFilterState
+import gomeng.dev.stashplayer.core.model.StashSelectedEntity
 import gomeng.dev.stashplayer.core.model.StashSelectedTag
 import gomeng.dev.stashplayer.core.model.StashVideoFilterState
 import gomeng.dev.stashplayer.core.ui.components.StashDateDurationPlaybackFilterSheet
 import gomeng.dev.stashplayer.core.ui.components.StashLocalLibraryFilterSheet
+import gomeng.dev.stashplayer.core.ui.components.StashPeopleFilterSheet
 import gomeng.dev.stashplayer.core.ui.components.StashRatingMediaFormatFilterSheet
 import gomeng.dev.stashplayer.core.ui.components.StashSavedFilterSheet
 import gomeng.dev.stashplayer.core.ui.components.StashTagFilterSheet
@@ -51,6 +53,8 @@ fun StashDiscoveryFilterSheets(
     onRetryTags: () -> Unit,
     onToggleLocalFavoriteOnly: () -> Unit,
     onClearSavedFilter: () -> Unit,
+    searchPerformers: suspend (String) -> List<StashSelectedEntity> = { emptyList() },
+    searchStudios: suspend (String) -> List<StashSelectedEntity> = { emptyList() },
 ) {
     val visibility = openSheet.toFilterSheetVisibility()
 
@@ -68,6 +72,7 @@ fun StashDiscoveryFilterSheets(
                 onApplyFilterAction(action, action.shouldPromoteRecent)
             },
             onOpenTagFilter = { onOpenSheet(StashDiscoveryOpenSheet.Tags) },
+            onOpenPeopleFilter = { onOpenSheet(StashDiscoveryOpenSheet.People) },
             onOpenDateDurationPlaybackFilter = { onOpenSheet(StashDiscoveryOpenSheet.DateDurationPlayback) },
             onOpenRatingMediaFormatFilter = { onOpenSheet(StashDiscoveryOpenSheet.RatingMedia) },
             onOpenLocalLibraryFilter = { onOpenSheet(StashDiscoveryOpenSheet.LocalLibrary) },
@@ -111,6 +116,20 @@ fun StashDiscoveryFilterSheets(
             onTagQueryChange = onTagQueryChange,
             onApplyTags = onApplyTags,
             onRetry = onRetryTags,
+            onDismiss = onDismiss,
+        )
+    }
+
+    if (visibility.isPeopleFilterOpen) {
+        StashPeopleFilterSheet(
+            videoFilter = videoFilter,
+            searchPerformers = searchPerformers,
+            searchStudios = searchStudios,
+            onApply = { performers, studios ->
+                val updated = videoFilter.copy(performers = performers, studios = studios)
+                val action = applyStashDiscoveryManualFilter(videoFilter, updated)
+                onApplyFilterAction(action, action.shouldPromoteRecent)
+            },
             onDismiss = onDismiss,
         )
     }

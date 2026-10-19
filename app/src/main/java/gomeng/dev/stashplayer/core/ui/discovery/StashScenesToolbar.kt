@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.LocalOffer
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Search
@@ -246,6 +247,7 @@ fun StashVideoFilterGroupRow(
     onOpenRatingMediaFormatFilter: (() -> Unit)? = null,
     onOpenLocalLibraryFilter: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onOpenPeopleFilter: (() -> Unit)? = null,
 ) {
     StashGlassSurface(
         modifier = modifier
@@ -270,6 +272,7 @@ fun StashVideoFilterGroupRow(
                 onOpenRatingMediaFormatFilter = onOpenRatingMediaFormatFilter,
                 onOpenLocalLibraryFilter = onOpenLocalLibraryFilter,
                 onOpenUnifiedFilter = onOpenFilter,
+                onOpenPeopleFilter = onOpenPeopleFilter,
             )
         }
     }
@@ -286,6 +289,7 @@ private fun VideoFilterShortcutButtons(
     onOpenRatingMediaFormatFilter: (() -> Unit)?,
     onOpenLocalLibraryFilter: (() -> Unit)?,
     onOpenUnifiedFilter: () -> Unit,
+    onOpenPeopleFilter: (() -> Unit)? = null,
 ) {
     ToolbarPillButton(
         icon = Icons.Outlined.Bookmarks,
@@ -303,6 +307,17 @@ private fun VideoFilterShortcutButtons(
             enabled = isConfigured,
             selected = videoFilter.stashToolbarTagFilterBadgeCount() > 0,
             onClick = onOpenTagFilter,
+        )
+    }
+    if (onOpenPeopleFilter != null) {
+        val peopleCount = videoFilter.performers.size + videoFilter.studios.size
+        ToolbarPillButton(
+            icon = Icons.Outlined.Person,
+            label = stashScenesToolbarSectionFilterLabel(stashString(R.string.navigation_performers_label), peopleCount),
+            contentDescription = stashScenesToolbarSectionFilterContentDescription(stashString(R.string.video_filter_people_title), peopleCount),
+            enabled = isConfigured,
+            selected = peopleCount > 0,
+            onClick = onOpenPeopleFilter,
         )
     }
     if (onOpenDateDurationPlaybackFilter != null) {

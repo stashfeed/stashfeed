@@ -21,6 +21,8 @@ fun deserializeStashVideoFilterState(serialized: String): StashVideoFilterState 
 
     return StashVideoFilterState(
         tags = fields["tags"].parseTags(),
+        performers = fields["performers"].parseEntities(),
+        studios = fields["studios"].parseEntities(),
         dateRange = rangeOrNull(
             StashDateRange(
                 start = fields["dateStart"]?.let(::decodeOrNull)?.takeIf { it.isNotBlank() },
@@ -72,6 +74,9 @@ private fun String?.parseTags(): List<StashSelectedTag> = this
         }
     }
     .orEmpty()
+
+private fun String?.parseEntities(): List<StashSelectedEntity> = parseTags()
+    .map { StashSelectedEntity(id = it.id, name = it.name) }
 
 private fun String?.parseSavedFilter(): StashSavedFilterRef? {
     val value = this?.takeIf { it.isNotBlank() } ?: return null

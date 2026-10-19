@@ -314,6 +314,11 @@ fun StashVideoFilterEditTarget.filterSurfaceDescriptor(): StashFilterSurfaceDesc
         role = StashFilterSurfaceRole.ModalEditTarget,
         editTarget = this,
     )
+    StashVideoFilterEditTarget.People -> StashFilterSurfaceDescriptor(
+        label = stashString(R.string.video_filter_people_title),
+        role = StashFilterSurfaceRole.ModalEditTarget,
+        editTarget = this,
+    )
     StashVideoFilterEditTarget.DateDurationPlayback -> StashFilterSurfaceDescriptor(
         label = stashString(R.string.auto_kr_0085),
         role = StashFilterSurfaceRole.ModalEditTarget,

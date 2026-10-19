@@ -647,6 +647,7 @@ private data class ApiGallery(
     val id: String,
     val title: String? = null,
     val date: String? = null,
+    @Json(name = "created_at") val createdAt: String? = null,
     val rating100: Int? = null,
     @Json(name = "image_count") val imageCount: Int? = null,
     @Json(name = "file_count") val fileCount: Int? = null,
@@ -681,6 +682,7 @@ private data class ApiGallery(
         tagChips = tags.mapNotNull { it.toSceneCardTagChipOrNull() },
         performerChips = performers.mapNotNull { it.toSceneCardChipOrNull() },
         sceneChips = scenes.mapNotNull { it.toGallerySceneChipOrNull() },
+        createdAt = createdAt?.trim()?.takeIf { it.isNotBlank() },
     )
 
     fun toDetail(): StashGalleryDetailModel = StashGalleryDetailModel(
@@ -828,7 +830,10 @@ private data class ApiScene(
     @Json(name = "resume_time") val resumeTime: Double? = null,
     @Json(name = "play_count") val playCount: Int? = null,
     @Json(name = "o_counter") val oCounter: Int? = null,
+    val date: String? = null,
+    @Json(name = "created_at") val createdAt: String? = null,
     val studio: ApiStudio? = null,
+    val performers: List<ApiNamedEntity> = emptyList(),
     val files: List<ApiVideoFile> = emptyList(),
     val paths: ApiScenePaths? = null,
     val sceneStreams: List<ApiSceneStream> = emptyList(),
@@ -897,6 +902,11 @@ private data class ApiScene(
                 durationText = durationText,
             ),
             tagChips = tags.mapNotNull { it.toSceneCardTagChipOrNull() },
+            performerChips = performers.mapNotNull { it.toSceneCardChipOrNull() },
+            date = date?.trim()?.takeIf { it.isNotBlank() },
+            createdAt = createdAt?.trim()?.takeIf { it.isNotBlank() },
+            oCounter = oCounter,
+            rating100 = rating100,
         )
     }
 

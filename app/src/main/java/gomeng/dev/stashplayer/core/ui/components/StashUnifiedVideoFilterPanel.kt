@@ -84,6 +84,7 @@ fun StashUnifiedVideoFilterSheet(
     onApplyRecentFilter: (StashVideoFilterState) -> Unit,
     onApplyVideoFilter: (StashVideoFilterState) -> Unit,
     onOpenTagFilter: () -> Unit,
+    onOpenPeopleFilter: () -> Unit,
     onOpenDateDurationPlaybackFilter: () -> Unit,
     onOpenRatingMediaFormatFilter: () -> Unit,
     onOpenLocalLibraryFilter: () -> Unit,
@@ -97,6 +98,7 @@ fun StashUnifiedVideoFilterSheet(
         onDismiss()
         when (target) {
             StashVideoFilterEditTarget.Tags -> onOpenTagFilter()
+            StashVideoFilterEditTarget.People -> onOpenPeopleFilter()
             StashVideoFilterEditTarget.DateDurationPlayback -> onOpenDateDurationPlaybackFilter()
             StashVideoFilterEditTarget.RatingMedia -> onOpenRatingMediaFormatFilter()
             StashVideoFilterEditTarget.LocalLibrary -> onOpenLocalLibraryFilter()

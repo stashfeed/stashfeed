@@ -3,6 +3,7 @@ package gomeng.dev.stashplayer.core.discovery
 sealed interface StashDiscoveryOpenSheet {
     data object None : StashDiscoveryOpenSheet
     data object Tags : StashDiscoveryOpenSheet
+    data object People : StashDiscoveryOpenSheet
     data object DateDurationPlayback : StashDiscoveryOpenSheet
     data object RatingMedia : StashDiscoveryOpenSheet
     data object LocalLibrary : StashDiscoveryOpenSheet
@@ -18,6 +19,7 @@ data class StashDiscoveryFilterSheetVisibility(
     val isUnifiedFilterPanelOpen: Boolean,
     val isSavedFilterSheetOpen: Boolean,
     val isTagFilterOpen: Boolean,
+    val isPeopleFilterOpen: Boolean,
     val isDateDurationPlaybackFilterOpen: Boolean,
     val isRatingMediaFormatFilterOpen: Boolean,
     val isLocalLibraryFilterOpen: Boolean,
@@ -28,6 +30,7 @@ fun StashDiscoveryOpenSheet.toFilterSheetVisibility(): StashDiscoveryFilterSheet
         isUnifiedFilterPanelOpen = this == StashDiscoveryOpenSheet.UnifiedFilterPanel,
         isSavedFilterSheetOpen = this == StashDiscoveryOpenSheet.SavedFilters,
         isTagFilterOpen = this == StashDiscoveryOpenSheet.Tags,
+        isPeopleFilterOpen = this == StashDiscoveryOpenSheet.People,
         isDateDurationPlaybackFilterOpen = this == StashDiscoveryOpenSheet.DateDurationPlayback,
         isRatingMediaFormatFilterOpen = this == StashDiscoveryOpenSheet.RatingMedia,
         isLocalLibraryFilterOpen = this == StashDiscoveryOpenSheet.LocalLibrary,

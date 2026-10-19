@@ -16,6 +16,8 @@ data class StashDiscoveryFilterAction(
 
 enum class StashDiscoveryFilterSection {
     Tags,
+    Performers,
+    Studios,
     DateRange,
     DurationRange,
     OCounter,
@@ -77,6 +79,8 @@ fun clearStashDiscoveryFilterSection(
 ): StashDiscoveryFilterAction {
     val updated = when (section) {
         StashDiscoveryFilterSection.Tags -> current.copy(tags = emptyList())
+        StashDiscoveryFilterSection.Performers -> current.copy(performers = emptyList())
+        StashDiscoveryFilterSection.Studios -> current.copy(studios = emptyList())
         StashDiscoveryFilterSection.DateRange -> current.copy(dateRange = null)
         StashDiscoveryFilterSection.DurationRange -> current.copy(durationRange = null)
         StashDiscoveryFilterSection.OCounter -> current.copy(oCounterFilter = null)

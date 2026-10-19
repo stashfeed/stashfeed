@@ -84,6 +84,9 @@ fun StashActiveVideoFilterChipsRow(
     horizontalPadding: Dp,
     onTagClick: () -> Unit,
     onClearTags: () -> Unit,
+    onPeopleClick: () -> Unit = {},
+    onClearPerformers: () -> Unit = {},
+    onClearStudios: () -> Unit = {},
     onDateDurationPlaybackClick: () -> Unit = {},
     onClearDateRange: () -> Unit = {},
     onClearDurationRange: () -> Unit = {},
@@ -103,6 +106,7 @@ fun StashActiveVideoFilterChipsRow(
     fun onEditTargetClick(target: StashVideoFilterEditTarget) {
         when (target) {
             StashVideoFilterEditTarget.Tags -> onTagClick()
+            StashVideoFilterEditTarget.People -> onPeopleClick()
             StashVideoFilterEditTarget.DateDurationPlayback -> onDateDurationPlaybackClick()
             StashVideoFilterEditTarget.RatingMedia -> onRatingMediaFormatClick()
             StashVideoFilterEditTarget.LocalLibrary -> onLocalLibraryClick()
@@ -125,6 +129,22 @@ fun StashActiveVideoFilterChipsRow(
                         onClick = { chip.category.filterSurfaceDescriptor().editTarget?.let(::onEditTargetClick) },
                         clearLabel = stashString(R.string.auto_kr_0365),
                         onClear = onClearTags,
+                    )
+                }
+                StashVideoFilterCategory.Performer -> {
+                    ActiveFilterChipWithClear(
+                        label = chip.label,
+                        onClick = { chip.category.filterSurfaceDescriptor().editTarget?.let(::onEditTargetClick) },
+                        clearLabel = stashString(R.string.video_filter_clear_performers),
+                        onClear = onClearPerformers,
+                    )
+                }
+                StashVideoFilterCategory.Studio -> {
+                    ActiveFilterChipWithClear(
+                        label = chip.label,
+                        onClick = { chip.category.filterSurfaceDescriptor().editTarget?.let(::onEditTargetClick) },
+                        clearLabel = stashString(R.string.video_filter_clear_studios),
+                        onClear = onClearStudios,
                     )
                 }
                 StashVideoFilterCategory.DateRange -> {

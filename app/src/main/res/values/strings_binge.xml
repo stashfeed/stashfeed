@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Strings for features added on top of stash-player-android (Binge-style performers, feed, navigation). -->
+<resources>
+    <!-- Navigation -->
+    <string name="navigation_for_you_label">For You</string>
+    <string name="navigation_performers_label">Performers</string>
+    <string name="navigation_library_label">Library</string>
+    <string name="explore_segment_videos">Videos</string>
+    <string name="explore_segment_photos">Photos</string>
+    <string name="library_queue_title">Up next</string>
+    <string name="library_watch_later_title">Watch later</string>
+    <string name="library_favorites_title">Favorites</string>
+    <string name="library_history_title">History</string>
+    <string name="library_item_count">%1$d items</string>
+    <string name="library_settings_subtitle">Server, playback, appearance</string>
+
+    <!-- Video filter: performers & studios -->
+    <string name="video_filter_people_title">Performers &amp; studios</string>
+    <string name="video_filter_people_empty_summary">Any performer or studio</string>
+    <string name="video_filter_chip_performers">Performer: %1$s</string>
+    <string name="video_filter_chip_studios">Studio: %1$s</string>
+    <string name="video_filter_clear_performers">Clear performers</string>
+    <string name="video_filter_clear_studios">Clear studios</string>
+    <string name="people_filter_hint">Shows scenes with any of the selected performers or studios.</string>
+    <string name="people_filter_tab_performers">Performers</string>
+    <string name="people_filter_tab_studios">Studios</string>
+    <string name="people_filter_search_performers">Search performers</string>
+    <string name="people_filter_search_studios">Search studios</string>
+    <string name="people_filter_no_results">No matches</string>
+    <string name="people_filter_load_failed">Couldn\'t load: %1$s</string>
+    <string name="people_filter_selected_count">%1$d selected</string>
+
+    <!-- Performers tab -->
+    <string name="performers_title">Performers</string>
+    <string name="performers_count">%1$d performers</string>
+    <string name="performers_search">Search performers</string>
+    <string name="performers_scope_following">Following</string>
+    <string name="performers_scope_all">All</string>
+    <string name="performers_sort_label">Sort: %1$s</string>
+    <string name="performers_sort_name">Name</string>
+    <string name="performers_sort_most_scenes">Most scenes</string>
+    <string name="performers_sort_rating">Highest rated</string>
+    <string name="performers_sort_recently_added">Recently added</string>
+    <string name="performers_sort_random">Random</string>
+    <string name="performers_scene_count">%1$d scenes</string>
+    <string name="performers_following_empty_title">You don\'t follow anyone yet</string>
+    <string name="performers_following_empty_message">Follow performers from their profile. Following uses the Stash favorite flag, so favorites from Stash show up here too.</string>
+    <string name="performers_show_all">Browse all performers</string>
+    <string name="performers_empty_title">No performers found</string>
+    <string name="performers_empty_message">Try another search.</string>
+    <string name="performers_error_title">Couldn\'t load performers</string>
+    <string name="performers_not_configured">Connect a Stash server in Settings first.</string>
+
+    <!-- Performer profile -->
+    <string name="performer_follow">Follow</string>
+    <string name="performer_following">Following</string>
+    <string name="performer_follow_failed">Couldn\'t update follow: %1$s</string>
+    <string name="performer_tab_feed">Feed</string>
+    <string name="performer_tab_scenes">Scenes</string>
+    <string name="performer_tab_photos">Photos</string>
+    <string name="performer_stat_scenes">Scenes</string>
+    <string name="performer_stat_galleries">Galleries</string>
+    <string name="performer_stat_images">Images</string>
+    <string name="performer_stat_o">O</string>
+    <string name="performer_back">Back</string>
+    <string name="performer_details_more">More</string>
+    <string name="performer_details_less">Less</string>
+    <string name="performer_aliases">Also known as %1$s</string>
+    <string name="performer_load_failed">Couldn\'t load performer</string>
+    <string name="performer_not_found">Performer not found</string>
+    <string name="performer_feed_empty">No scenes or galleries yet.</string>
+    <string name="performer_scenes_empty">No scenes yet.</string>
+    <string name="performer_photos_empty">No photos yet.</string>
+    <string name="performer_feed_gallery_badge">Gallery · %1$d images</string>
+    <string name="performer_feed_scene_badge">Scene</string>
+    <string name="performer_feed_added">Added %1$s</string>
+    <string name="performer_load_more_failed">Couldn\'t load more: %1$s</string>
+    <string name="performer_play_all">Play all</string>
+    <string name="performer_scene_sort_recent">Recent</string>
+    <string name="performer_scene_sort_most_viewed">Most views</string>
+    <string name="performer_scene_sort_most_o">Most O</string>
+    <string name="performer_scene_sort_rating">Highest rated</string>
+    <string name="performer_scene_sort_recently_added">Recently added</string>
+</resources>

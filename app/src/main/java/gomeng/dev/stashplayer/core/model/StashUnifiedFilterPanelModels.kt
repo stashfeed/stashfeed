@@ -22,6 +22,7 @@ fun StashVideoFilterState.unifiedFilterPanelSections(savedFilterCount: Int): Lis
     }
 
     val tagLabels = labelsFor(StashVideoFilterCategory.Tag)
+    val peopleLabels = labelsFor(StashVideoFilterCategory.Performer, StashVideoFilterCategory.Studio)
     val detailLabels = labelsFor(
         StashVideoFilterCategory.DateRange,
         StashVideoFilterCategory.DurationRange,
@@ -45,6 +46,12 @@ fun StashVideoFilterState.unifiedFilterPanelSections(savedFilterCount: Int): Lis
             summary = tagLabels.joinToString(" · ").ifBlank { stashString(R.string.auto_kr_0150) },
             isActive = tagLabels.isNotEmpty(),
             editTarget = StashVideoFilterEditTarget.Tags,
+        ),
+        StashUnifiedFilterPanelSection(
+            title = stashString(R.string.video_filter_people_title),
+            summary = peopleLabels.joinToString(" · ").ifBlank { stashString(R.string.video_filter_people_empty_summary) },
+            isActive = peopleLabels.isNotEmpty(),
+            editTarget = StashVideoFilterEditTarget.People,
         ),
         StashUnifiedFilterPanelSection(
             title = stashString(R.string.auto_kr_0085),
@@ -77,6 +84,7 @@ fun StashVideoFilterState.hasResettableUnifiedFilterPanelSection(
     target: StashVideoFilterEditTarget,
 ): Boolean = when (target) {
     StashVideoFilterEditTarget.Tags -> tags.isNotEmpty()
+    StashVideoFilterEditTarget.People -> performers.isNotEmpty() || studios.isNotEmpty()
     StashVideoFilterEditTarget.DateDurationPlayback ->
         dateRange?.isEmpty == false || durationRange?.isEmpty == false || oCounterFilter?.isNoOp == false || playbackState != null
     StashVideoFilterEditTarget.RatingMedia -> ratingRange?.isEmpty == false || !mediaFormat.isEmpty
@@ -88,6 +96,7 @@ fun StashVideoFilterState.resetUnifiedFilterPanelSection(
     target: StashVideoFilterEditTarget,
 ): StashVideoFilterState = when (target) {
     StashVideoFilterEditTarget.Tags -> copy(tags = emptyList())
+    StashVideoFilterEditTarget.People -> copy(performers = emptyList(), studios = emptyList())
     StashVideoFilterEditTarget.DateDurationPlayback -> copy(
         dateRange = null,
         durationRange = null,

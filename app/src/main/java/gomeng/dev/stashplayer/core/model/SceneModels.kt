@@ -21,6 +21,13 @@ data class SceneCardModel(
     val playCount: Int? = null,
     val metadataBadges: List<SceneCardMetadataBadge> = emptyList(),
     val tagChips: List<SceneCardTagChip> = emptyList(),
+    val performerChips: List<SceneCardTagChip> = emptyList(),
+    /** Release date (`date`), `yyyy-MM-dd`. */
+    val date: String? = null,
+    /** When the scene was added to Stash (`created_at`), ISO-8601. */
+    val createdAt: String? = null,
+    val oCounter: Int? = null,
+    val rating100: Int? = null,
 ) {
     val subtitle: String
         get() = buildList {

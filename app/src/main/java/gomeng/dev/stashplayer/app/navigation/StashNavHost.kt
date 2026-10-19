@@ -7,14 +7,15 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
+import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.PlayCircle
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.verticalScroll
@@ -30,6 +31,9 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -43,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -87,6 +92,10 @@ import gomeng.dev.stashplayer.feature.gallery.GalleryDetailRoute
 import gomeng.dev.stashplayer.feature.gallery.GalleryPhotoViewerOverlay
 import gomeng.dev.stashplayer.feature.gallery.GalleryRoute
 import gomeng.dev.stashplayer.feature.home.HomeRoute
+import gomeng.dev.stashplayer.feature.library.LibraryRoute
+import gomeng.dev.stashplayer.feature.performers.PerformerProfileRoute
+import gomeng.dev.stashplayer.feature.performers.PerformersRoute
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSpacing
 import gomeng.dev.stashplayer.feature.player.PlayerRoute
 import gomeng.dev.stashplayer.feature.queue.QueueRoute
 import gomeng.dev.stashplayer.feature.explore.ExploreRoute
@@ -104,12 +113,15 @@ private enum class TopLevelDestination(
     val icon: ImageVector,
 ) {
     Home("home", topLevelDestinationLabelResource("home"), Icons.Outlined.Home),
-    Explore("browse", topLevelDestinationLabelResource("browse"), Icons.Outlined.VideoLibrary),
-    Shorts("shorts", topLevelDestinationLabelResource("shorts"), Icons.Outlined.PlayCircle),
-    Gallery("gallery", topLevelDestinationLabelResource("gallery"), Icons.Outlined.PhotoLibrary),
-    Queue("queue", topLevelDestinationLabelResource("queue"), Icons.AutoMirrored.Outlined.PlaylistPlay),
-    Settings("settings", topLevelDestinationLabelResource("settings"), Icons.Outlined.Settings),
+    ForYou("shorts", topLevelDestinationLabelResource("shorts"), Icons.Outlined.PlayCircle),
+    Explore("browse", topLevelDestinationLabelResource("browse"), Icons.Outlined.Explore),
+    Performers("performers", topLevelDestinationLabelResource("performers"), Icons.Outlined.People),
+    Library("library", topLevelDestinationLabelResource("library"), Icons.Outlined.VideoLibrary),
 }
+
+/** Screens that used to be tabs; they now open from Explore or Library. */
+private const val GalleryRoutePath = "gallery"
+private const val QueueRoutePath = "queue"
 
 private data class ActiveGalleryPhotoViewer(
     val initialIndex: Int,
@@ -338,6 +350,10 @@ fun StashNavHost(
         }
     }
 
+    fun navigateSecondary(route: String) {
+        navController.navigate(route) { launchSingleTop = true }
+    }
+
     fun replaceCurrentPlayerScene(sceneId: String) {
         val presentation = resolvePlayerPresentationLaunchStateForOpenedScene(
             openedFromActivePlayer = true,
@@ -408,7 +424,7 @@ fun StashNavHost(
                                         TopLevelDestinationIcon(
                                             destination = destination,
                                             label = destinationLabel,
-                                            showBadge = destination == TopLevelDestination.Settings &&
+                                            showBadge = destination == TopLevelDestination.Library &&
                                                 availableUpdateNotice != null,
                                         )
                                     },
@@ -447,7 +463,7 @@ fun StashNavHost(
                                     TopLevelDestinationIcon(
                                         destination = destination,
                                         label = destinationLabel,
-                                        showBadge = destination == TopLevelDestination.Settings &&
+                                        showBadge = destination == TopLevelDestination.Library &&
                                             availableUpdateNotice != null,
                                     )
                                 },
@@ -500,33 +516,95 @@ fun StashNavHost(
                                     resumeExisting = true,
                                 )
                             },
-                            onOpenSettings = { navigateTopLevel(TopLevelDestination.Settings) },
-                            onOpenQueue = { navigateTopLevel(TopLevelDestination.Queue) },
-                            onOpenFavorites = { navigateTopLevel(TopLevelDestination.Queue) },
+                            onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
+                            onOpenQueue = { navigateSecondary(QueueRoutePath) },
+                            onOpenFavorites = { navigateSecondary(QueueRoutePath) },
                             onOpenExplore = { navigateTopLevel(TopLevelDestination.Explore) },
-                            onOpenShorts = { navigateTopLevel(TopLevelDestination.Shorts) },
+                            onOpenShorts = { navigateTopLevel(TopLevelDestination.ForYou) },
                         )
                     }
                     composable(TopLevelDestination.Explore.route) {
-                        ExploreRoute(
-                            isFoldLikeLayout = isFoldLikeLayout,
-                            onOpenScene = { sceneId, scenes, randomShuffle, continuation ->
-                                openPlaybackQueueScene(
-                                    sceneId = sceneId,
-                                    scenes = scenes,
-                                    randomShuffle = randomShuffle,
-                                    continuation = continuation,
-                                )
-                            },
-                            onOpenSettings = { navigateTopLevel(TopLevelDestination.Settings) },
-                        )
+                        var segment by rememberSaveable { mutableStateOf(ExploreSegment.Videos) }
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            ExploreSegmentRow(
+                                selected = segment,
+                                onSelect = { segment = it },
+                                isFoldLikeLayout = isFoldLikeLayout,
+                            )
+                            Box(modifier = Modifier.weight(1f)) {
+                                when (segment) {
+                                    ExploreSegment.Videos -> ExploreRoute(
+                                        isFoldLikeLayout = isFoldLikeLayout,
+                                        onOpenScene = { sceneId, scenes, randomShuffle, continuation ->
+                                            openPlaybackQueueScene(
+                                                sceneId = sceneId,
+                                                scenes = scenes,
+                                                randomShuffle = randomShuffle,
+                                                continuation = continuation,
+                                            )
+                                        },
+                                        onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
+                                    )
+                                    ExploreSegment.Photos -> GalleryRoute(
+                                        isFoldLikeLayout = isFoldLikeLayout,
+                                        onOpenGallery = { galleryId ->
+                                            navController.navigate(galleryDetailRouteForGallery(galleryId))
+                                        },
+                                        onOpenPhoto = { index, images ->
+                                            activeGalleryPhotoViewer = ActiveGalleryPhotoViewer(
+                                                initialIndex = index,
+                                                images = images,
+                                            )
+                                        },
+                                        onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
+                                    )
+                                }
+                            }
+                        }
                     }
-                    composable(TopLevelDestination.Shorts.route) {
+                    composable(TopLevelDestination.ForYou.route) {
                         ShortsRoute(
                             isFoldLikeLayout = isFoldLikeLayout,
                         )
                     }
-                    composable(TopLevelDestination.Gallery.route) {
+                    composable(TopLevelDestination.Performers.route) {
+                        PerformersRoute(
+                            isFoldLikeLayout = isFoldLikeLayout,
+                            onOpenPerformer = { performerId ->
+                                navController.navigate(performerProfileRouteForPerformer(performerId))
+                            },
+                        )
+                    }
+                    composable(PerformerProfileRoutePattern) { backStackEntry ->
+                        PerformerProfileRoute(
+                            performerId = backStackEntry.arguments?.getString("performerId").orEmpty(),
+                            isFoldLikeLayout = isFoldLikeLayout,
+                            onNavigateBack = {
+                                if (!navController.popBackStack()) navigateTopLevel(TopLevelDestination.Performers)
+                            },
+                            onOpenScene = { sceneId, scenes, shuffle ->
+                                openPlaybackQueueScene(sceneId = sceneId, scenes = scenes, randomShuffle = shuffle)
+                            },
+                            onOpenGallery = { galleryId ->
+                                navController.navigate(galleryDetailRouteForGallery(galleryId))
+                            },
+                            onOpenPhoto = { index, images ->
+                                activeGalleryPhotoViewer = ActiveGalleryPhotoViewer(
+                                    initialIndex = index,
+                                    images = images,
+                                )
+                            },
+                        )
+                    }
+                    composable(TopLevelDestination.Library.route) {
+                        LibraryRoute(
+                            isFoldLikeLayout = isFoldLikeLayout,
+                            hasAvailableUpdate = availableUpdateNotice != null,
+                            onOpenQueue = { navigateSecondary(QueueRoutePath) },
+                            onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
+                        )
+                    }
+                    composable(GalleryRoutePath) {
                         GalleryRoute(
                             isFoldLikeLayout = isFoldLikeLayout,
                             onOpenGallery = { galleryId ->
@@ -538,7 +616,7 @@ fun StashNavHost(
                                     images = images,
                                 )
                             },
-                            onOpenSettings = { navigateTopLevel(TopLevelDestination.Settings) },
+                            onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
                         )
                     }
                     composable("gallery/{galleryId}") { backStackEntry ->
@@ -547,9 +625,7 @@ fun StashNavHost(
                             isFoldLikeLayout = isFoldLikeLayout,
                             onNavigateBack = {
                                 if (!navController.popBackStack()) {
-                                    navController.navigate(TopLevelDestination.Gallery.route) {
-                                        launchSingleTop = true
-                                    }
+                                    navigateTopLevel(TopLevelDestination.Explore)
                                 }
                             },
                             onOpenPhoto = { _, index, images ->
@@ -564,10 +640,10 @@ fun StashNavHost(
                                 navController.navigate(playerRouteForScene(sceneId))
                             },
                             onOpenGallery = { linkedGalleryId -> navController.navigate(galleryDetailRouteForGallery(linkedGalleryId)) },
-                            onOpenSettings = { navigateTopLevel(TopLevelDestination.Settings) },
+                            onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
                         )
                     }
-                    composable(TopLevelDestination.Queue.route) {
+                    composable(QueueRoutePath) {
                         QueueRoute(
                             isFoldLikeLayout = isFoldLikeLayout,
                             currentSceneId = playbackQueue.currentSceneId,
@@ -582,7 +658,7 @@ fun StashNavHost(
                             onOpenExplore = { navigateTopLevel(TopLevelDestination.Explore) },
                         )
                     }
-                    composable(TopLevelDestination.Settings.route) {
+                    composable(SettingsDestinations.Root) {
                         SettingsRoute(
                             isFoldLikeLayout = isFoldLikeLayout,
                             hasAvailableUpdate = availableUpdateNotice != null,
@@ -622,7 +698,7 @@ fun StashNavHost(
                             },
                             onPlaybackSpeedChange = { playerPlaybackSpeed = it },
                             onOpenScene = { sceneId -> replaceCurrentPlayerScene(sceneId) },
-                            onOpenSettings = { navController.navigate(TopLevelDestination.Settings.route) },
+                            onOpenSettings = { navController.navigate(SettingsDestinations.Root) },
                             onExitPlayer = ::exitPlayer,
                             onPlaylistDrawerOpen = ::ensurePlaylistTrailingItems,
                         )
@@ -733,8 +809,44 @@ private fun isTopLevelDestinationSelected(
     hierarchyRoutes: Sequence<String?>?,
     destination: TopLevelDestination,
 ): Boolean = when (destination) {
-    TopLevelDestination.Settings -> SettingsDestinations.isSettingsRoute(currentRoute)
+    TopLevelDestination.Library -> currentRoute == destination.route ||
+        currentRoute == QueueRoutePath ||
+        SettingsDestinations.isSettingsRoute(currentRoute)
+    TopLevelDestination.Explore -> hierarchyRoutes?.any { it == destination.route } == true ||
+        currentRoute == GalleryRoutePath ||
+        currentRoute?.startsWith("$GalleryRoutePath/") == true
+    TopLevelDestination.Performers -> currentRoute == destination.route || currentRoute == PerformerProfileRoutePattern
     else -> hierarchyRoutes?.any { it == destination.route } == true
+}
+
+private enum class ExploreSegment(val labelRes: Int) {
+    Videos(R.string.explore_segment_videos),
+    Photos(R.string.explore_segment_photos),
+}
+
+@Composable
+private fun ExploreSegmentRow(
+    selected: ExploreSegment,
+    onSelect: (ExploreSegment) -> Unit,
+    isFoldLikeLayout: Boolean,
+) {
+    val horizontalPadding = if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = horizontalPadding)
+            .padding(top = StashSpacing.CardGap),
+    ) {
+        ExploreSegment.entries.forEachIndexed { index, segment ->
+            SegmentedButton(
+                selected = segment == selected,
+                onClick = { onSelect(segment) },
+                shape = SegmentedButtonDefaults.itemShape(index = index, count = ExploreSegment.entries.size),
+            ) {
+                Text(stringResource(segment.labelRes))
+            }
+        }
+    }
 }
 
 private fun PlayerPlaybackQueueContinuation.videoFilterState() = when (this) {

@@ -24,6 +24,8 @@ data class GalleryCardModel(
     val tagChips: List<SceneCardTagChip> = emptyList(),
     val performerChips: List<SceneCardTagChip> = emptyList(),
     val sceneChips: List<SceneCardTagChip> = emptyList(),
+    /** When the gallery was added to Stash (`created_at`), ISO-8601. */
+    val createdAt: String? = null,
 ) {
     val bestThumbnailUrl: String?
         get() = coverUrl ?: previewUrl

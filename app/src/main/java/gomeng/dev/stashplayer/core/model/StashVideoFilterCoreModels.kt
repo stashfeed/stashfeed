@@ -11,6 +11,8 @@ fun normalizeStashVideoFilterText(value: String): String = value
 
 enum class StashVideoFilterCategory(val id: String) {
     Tag("tag"),
+    Performer("performer"),
+    Studio("studio"),
     DateRange("date_range"),
     DurationRange("duration_range"),
     OCounter("o_counter"),
@@ -24,6 +26,7 @@ enum class StashVideoFilterCategory(val id: String) {
 
 enum class StashVideoFilterEditTarget {
     Tags,
+    People,
     DateDurationPlayback,
     RatingMedia,
     LocalLibrary,
@@ -32,6 +35,8 @@ enum class StashVideoFilterEditTarget {
 
 fun StashVideoFilterCategory.editTarget(): StashVideoFilterEditTarget = when (this) {
     StashVideoFilterCategory.Tag -> StashVideoFilterEditTarget.Tags
+    StashVideoFilterCategory.Performer,
+    StashVideoFilterCategory.Studio -> StashVideoFilterEditTarget.People
     StashVideoFilterCategory.DateRange,
     StashVideoFilterCategory.DurationRange,
     StashVideoFilterCategory.OCounter,
@@ -50,6 +55,8 @@ data class StashActiveFilterChip(
 
 data class StashVideoFilterState(
     val tags: List<StashSelectedTag> = emptyList(),
+    val performers: List<StashSelectedEntity> = emptyList(),
+    val studios: List<StashSelectedEntity> = emptyList(),
     val dateRange: StashDateRange? = null,
     val durationRange: StashDurationRange? = null,
     val oCounterFilter: StashOCounterFilter? = null,
@@ -67,6 +74,12 @@ data class StashVideoFilterState(
     fun activeFilterChips(): List<StashActiveFilterChip> = buildList {
         if (tags.isNotEmpty()) {
             add(StashActiveFilterChip(StashVideoFilterCategory.Tag, stashString(R.string.auto_kr_0155, tags.size)))
+        }
+        if (performers.isNotEmpty()) {
+            add(StashActiveFilterChip(StashVideoFilterCategory.Performer, performers.entityChipLabel(R.string.video_filter_chip_performers)))
+        }
+        if (studios.isNotEmpty()) {
+            add(StashActiveFilterChip(StashVideoFilterCategory.Studio, studios.entityChipLabel(R.string.video_filter_chip_studios)))
         }
         dateRange?.takeUnless { it.isEmpty }?.let { range ->
             add(StashActiveFilterChip(StashVideoFilterCategory.DateRange, stashString(R.string.auto_kr_0156, range.dateLabel())))
@@ -102,6 +115,8 @@ data class StashVideoFilterState(
         if (tags.isNotEmpty()) {
             add("tags=${tags.joinToString(",") { "${encodeStashVideoFilterField(it.id)}:${encodeStashVideoFilterField(it.name)}" }}")
         }
+        if (performers.isNotEmpty()) add("performers=${performers.encodeEntitiesForStorage()}")
+        if (studios.isNotEmpty()) add("studios=${studios.encodeEntitiesForStorage()}")
         dateRange?.takeUnless { it.isEmpty }?.let { range ->
             add("dateStart=${encodeStashVideoFilterField(range.start.orEmpty())}")
             add("dateEnd=${encodeStashVideoFilterField(range.end.orEmpty())}")
@@ -135,3 +150,13 @@ data class StashVideoFilterState(
 }
 
 private fun encodeStashVideoFilterField(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8.name())
+
+private fun List<StashSelectedEntity>.encodeEntitiesForStorage(): String =
+    joinToString(",") { "${encodeStashVideoFilterField(it.id)}:${encodeStashVideoFilterField(it.name)}" }
+
+/** "Name" for one entity, "Name +2" for several; wrapped in the category's chip format. */
+private fun List<StashSelectedEntity>.entityChipLabel(formatRes: Int): String {
+    val first = first().name
+    val label = if (size == 1) first else "$first +${size - 1}"
+    return stashString(formatRes, label)
+}

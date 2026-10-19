@@ -2,6 +2,10 @@ package gomeng.dev.stashplayer.core.network
 
 import android.net.Uri
 import gomeng.dev.stashplayer.core.model.SceneBulkDeleteResult
+import gomeng.dev.stashplayer.core.model.PerformerDetailModel
+import gomeng.dev.stashplayer.core.model.PerformerListScope
+import gomeng.dev.stashplayer.core.model.PerformerListSort
+import gomeng.dev.stashplayer.core.model.StashPerformerPage
 import gomeng.dev.stashplayer.core.model.StashGalleryPage
 import gomeng.dev.stashplayer.core.model.StashImagePage
 import gomeng.dev.stashplayer.core.model.StashSceneDeleteOptions
@@ -483,6 +487,31 @@ class StashGraphQlClient(
         return parseFindPerformersResponse(execute(FIND_PERFORMERS_QUERY, buildFindTagsVariables(perPage, page, query)))
     }
 
+    suspend fun findPerformerCardsPage(
+        perPage: Int = 40,
+        page: Int = 1,
+        query: String? = null,
+        scope: PerformerListScope = PerformerListScope.All,
+        sort: PerformerListSort = PerformerListSort.Name,
+        randomSeed: Int? = null,
+    ): StashPerformerPage = parseFindPerformerCardsResponse(
+        execute(
+            FIND_PERFORMER_CARDS_QUERY,
+            buildFindPerformerCardsVariables(perPage, page, query, scope, sort, randomSeed),
+        ),
+        resolveUrl = profile::authenticatedUrl,
+    )
+
+    suspend fun findPerformerDetail(performerId: String): PerformerDetailModel? = parseFindPerformerDetailResponse(
+        execute(FIND_PERFORMER_DETAIL_QUERY, mapOf("id" to performerId.trim())),
+        resolveUrl = profile::authenticatedUrl,
+    )
+
+    /** Following a performer in this app = Stash's favorite flag, so it stays in sync with the Binge plugin. */
+    suspend fun setPerformerFavorite(performerId: String, favorite: Boolean): Boolean = parsePerformerSetFavoriteResponse(
+        execute(PERFORMER_SET_FAVORITE_MUTATION, mapOf("id" to performerId.trim(), "favorite" to favorite)),
+    )
+
     suspend fun findSceneEntities(
         perPage: Int = 50,
         page: Int = 1,
@@ -770,7 +799,12 @@ class StashGraphQlClient(
                   title
                   resume_time
                   play_count
+                  o_counter
+                  rating100
+                  date
+                  created_at
                   studio { name }
+                  performers { id name }
                   files {
                     ... on VideoFile {
                       duration
@@ -795,6 +829,7 @@ class StashGraphQlClient(
                   id
                   title
                   date
+                  created_at
                   rating100
                   image_count
                   details
@@ -1292,6 +1327,13 @@ private fun StashVideoFilterState.toGraphQlSceneFilterOrNull(): Map<String, Any?
                 "modifier" to "INCLUDES_ALL",
             ),
         )
+    }
+    // INCLUDES = scenes with any of the selected performers / studios (same as the Binge plugin).
+    performers.takeIf { it.isNotEmpty() }?.let { selected ->
+        put("performers", mapOf("value" to selected.map { it.id }, "modifier" to "INCLUDES"))
+    }
+    studios.takeIf { it.isNotEmpty() }?.let { selected ->
+        put("studios", mapOf("value" to selected.map { it.id }, "modifier" to "INCLUDES", "depth" to 0))
     }
     dateRange?.toDateCriterionOrNull()?.let { put("date", it) }
     durationRange?.toIntCriterionOrNull()?.let { put("duration", it) }

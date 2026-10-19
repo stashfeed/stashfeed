@@ -73,6 +73,11 @@ internal fun playerRouteForScene(sceneId: String): String =
 internal fun galleryDetailRouteForGallery(galleryId: String): String =
     "gallery/${galleryId.encodeRouteSegment()}"
 
+internal const val PerformerProfileRoutePattern = "performer/{performerId}"
+
+internal fun performerProfileRouteForPerformer(performerId: String): String =
+    "performer/${performerId.encodeRouteSegment()}"
+
 internal fun shouldShowBottomNavigation(
     route: String?,
     isFoldLikeLayout: Boolean,
@@ -136,11 +141,10 @@ internal fun shouldRedirectSetupWithSavedProfile(hasSavedProfile: Boolean, route
 
 private val TopLevelDestinationLabelResourcesByRoute = mapOf(
     "home" to R.string.navigation_home_label,
+    "shorts" to R.string.navigation_for_you_label,
     "browse" to R.string.navigation_explore_label,
-    "shorts" to R.string.navigation_shorts_label,
-    "gallery" to R.string.navigation_gallery_label,
-    "queue" to R.string.navigation_queue_label,
-    "settings" to R.string.navigation_settings_label,
+    "performers" to R.string.navigation_performers_label,
+    "library" to R.string.navigation_library_label,
 )
 
 internal fun topLevelDestinationLabelResourcesByRoute(): Map<String, Int> = TopLevelDestinationLabelResourcesByRoute

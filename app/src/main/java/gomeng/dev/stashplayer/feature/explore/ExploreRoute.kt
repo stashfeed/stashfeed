@@ -460,6 +460,8 @@ fun ExploreRoute(
         onClearSavedFilter = {
             applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.SavedFilter), saveRecent = false)
         },
+        searchPerformers = { query -> profile?.let { StashGraphQlClient(it).findPerformers(query = query) }.orEmpty() },
+        searchStudios = { query -> profile?.let { StashGraphQlClient(it).findStudios(query = query) }.orEmpty() },
     )
 
     ExploreContent(
@@ -506,6 +508,13 @@ fun ExploreRoute(
         onOpenSavedFilters = { openSheet = openSheet.open(StashDiscoveryOpenSheet.SavedFilters) },
         onOpenUnifiedFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.UnifiedFilterPanel) },
         onOpenTagFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.Tags) },
+        onOpenPeopleFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.People) },
+        onClearPerformers = {
+            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.Performers), saveRecent = false)
+        },
+        onClearStudios = {
+            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.Studios), saveRecent = false)
+        },
         onOpenDateDurationPlaybackFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.DateDurationPlayback) },
         onOpenRatingMediaFormatFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.RatingMedia) },
         onOpenLocalLibraryFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.LocalLibrary) },
@@ -652,6 +661,9 @@ private fun ExploreContent(
     onOpenSavedFilters: () -> Unit,
     onOpenUnifiedFilter: () -> Unit,
     onOpenTagFilter: () -> Unit,
+    onOpenPeopleFilter: () -> Unit,
+    onClearPerformers: () -> Unit,
+    onClearStudios: () -> Unit,
     onOpenDateDurationPlaybackFilter: () -> Unit,
     onOpenRatingMediaFormatFilter: () -> Unit,
     onOpenLocalLibraryFilter: () -> Unit,
@@ -820,6 +832,7 @@ private fun ExploreContent(
                 onOpenDateDurationPlaybackFilter = onOpenDateDurationPlaybackFilter,
                 onOpenRatingMediaFormatFilter = onOpenRatingMediaFormatFilter,
                 onOpenLocalLibraryFilter = onOpenLocalLibraryFilter,
+                onOpenPeopleFilter = onOpenPeopleFilter,
             )
         }
 
@@ -828,6 +841,9 @@ private fun ExploreContent(
             horizontalPadding = horizontalPadding,
             onTagClick = onOpenTagFilter,
             onClearTags = onClearTags,
+            onPeopleClick = onOpenPeopleFilter,
+            onClearPerformers = onClearPerformers,
+            onClearStudios = onClearStudios,
             onDateDurationPlaybackClick = onOpenDateDurationPlaybackFilter,
             onClearDateRange = onClearDateRange,
             onClearDurationRange = onClearDurationRange,
