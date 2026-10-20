@@ -217,4 +217,6 @@
     <string name="mini_player_pause">Pause</string>
     <string name="mini_player_close">Close player</string>
     <string name="library_not_connected">Not connected</string>
+    <string name="feed_sound_on">Turn sound on</string>
+    <string name="feed_sound_off">Mute</string>
 </resources>

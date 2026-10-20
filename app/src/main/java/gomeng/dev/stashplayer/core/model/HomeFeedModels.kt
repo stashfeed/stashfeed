@@ -6,9 +6,6 @@ import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
 
-/** Same thresholds as the Binge plugin: 8+ scenes of one performer added within 7 days become a pack. */
-const val HOME_FEED_PACK_MIN_SCENES = 8
-const val HOME_FEED_PACK_WINDOW_MS = 7L * 24 * 60 * 60 * 1000
 val HOME_FEED_LOOKBACK_DAY_OPTIONS = listOf(7, 14, 30, 60, 90)
 const val HOME_FEED_DEFAULT_LOOKBACK_DAYS = 30
 val HOME_FEED_DEFAULT_IGNORED_GALLERY_FOLDERS = listOf("screen*", "scr", "cover", "covers", "proof")
@@ -31,6 +28,7 @@ enum class StashPerformerGender(val graphQlValue: String, @StringRes val labelRe
 enum class HomeFeedKind(@StringRes val labelRes: Int) {
     Posts(R.string.home_feed_kind_posts),
     Reposts(R.string.home_feed_kind_reposts),
+    /** Kept so saved settings that hide it still parse; scenes are never grouped any more. */
     Packs(R.string.home_feed_kind_packs),
     Galleries(R.string.home_feed_kind_galleries),
     Unidentified(R.string.home_feed_kind_unidentified),
@@ -119,12 +117,6 @@ sealed interface HomeFeedItem {
         override val key: String get() = "gallery:${gallery.gallery.id}"
         override val createdAt: String get() = gallery.createdAt
     }
-
-    /** A batch of scenes one performer got in a short time, shown as one swipeable post. */
-    data class Pack(val performer: FeedPerformer, val scenes: List<FeedScene>, val isRepost: Boolean) : HomeFeedItem {
-        override val key: String get() = "pack:${performer.id}:${scenes.first().scene.id}"
-        override val createdAt: String get() = scenes.first().createdAt
-    }
 }
 
 /** A performer with new scenes in the window; the story plays their preview clips. */
@@ -144,7 +136,7 @@ data class HomeFeed(
 
 /**
  * Builds the Home feed the way the Binge plugin does: newest-added first, a post per scene (with its
- * performers), packs for bursts of one performer, reposts for back-catalog scenes added recently, gallery posts,
+ * performers), reposts for back-catalog scenes added recently, gallery posts,
  * and a story per performer with new scenes.
  *
  * @param windowStartDate `yyyy-MM-dd`; a scene released before it but added inside the window is a repost.
@@ -159,28 +151,9 @@ fun buildHomeFeed(
     val (identified, unidentified) = distinctScenes.partition { it.performers.isNotEmpty() }
     fun isRepost(scene: FeedScene) = scene.date != null && scene.date < windowStartDate
 
-    // Packs: per primary (allowed) performer, the newest scenes that sit within 7 days of the newest one.
-    val packedSceneIds = mutableSetOf<String>()
-    val packs = mutableListOf<HomeFeedItem.Pack>()
-    if (HomeFeedKind.Packs !in settings.hiddenKinds) {
-        identified
-            .groupBy { scene -> scene.primaryPerformer(settings) }
-            .forEach { (performer, performerScenes) ->
-                if (performer == null) return@forEach
-                val newest = performerScenes.first().createdAt.toEpochMillisOrNull() ?: return@forEach
-                val burst = performerScenes.filter { scene ->
-                    val added = scene.createdAt.toEpochMillisOrNull() ?: return@filter false
-                    newest - added <= HOME_FEED_PACK_WINDOW_MS
-                }
-                if (burst.size >= HOME_FEED_PACK_MIN_SCENES) {
-                    packs += HomeFeedItem.Pack(performer, burst, isRepost = burst.all(::isRepost))
-                    burst.forEach { packedSceneIds += it.scene.id }
-                }
-            }
-    }
-
+    // Every scene is its own post, even when one performer got many on the same day.
     val posts = buildList {
-        identified.filter { it.scene.id !in packedSceneIds }.forEach { scene ->
+        identified.forEach { scene ->
             val repost = isRepost(scene)
             val kind = if (repost) HomeFeedKind.Reposts else HomeFeedKind.Posts
             if (kind !in settings.hiddenKinds) add(HomeFeedItem.Post(scene, repost))
@@ -189,7 +162,6 @@ fun buildHomeFeed(
             unidentified.forEach { add(HomeFeedItem.Post(it, isRepost(it))) }
         }
     }
-    val packItems = packs.filter { pack -> (if (pack.isRepost) HomeFeedKind.Reposts else HomeFeedKind.Posts) !in settings.hiddenKinds }
 
     val noise = galleryNoiseMatcher(settings.ignoredGalleryFolders)
     val visibleGalleries = galleries.distinctBy { it.gallery.id }.filterNot { noise(it.paths) }
@@ -207,16 +179,12 @@ fun buildHomeFeed(
         .sortedWith(compareByDescending<HomeStory> { it.performer.favorite }.thenByDescending { it.latestCreatedAt })
 
     return HomeFeed(
-        items = (posts + packItems + galleryItems).sortedByDescending { it.createdAt },
+        items = (posts + galleryItems).sortedByDescending { it.createdAt },
         stories = stories,
         unidentifiedSceneCount = unidentified.size,
         unidentifiedGalleryCount = unidentifiedGalleries.size,
     )
 }
-
-/** First performer whose gender is allowed: who a post "belongs" to for packs. */
-private fun FeedScene.primaryPerformer(settings: HomeFeedSettings): FeedPerformer? =
-    performers.firstOrNull { settings.isAllowed(it.gender) }
 
 /** Folder names to ignore; a trailing `*` matches by prefix ("screen*" matches "screenshots"). */
 internal fun galleryNoiseMatcher(patterns: List<String>): (List<String>) -> Boolean {

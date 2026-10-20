@@ -103,6 +103,7 @@ import gomeng.dev.stashplayer.core.ui.components.LocalStashBrowseTabs
 import gomeng.dev.stashplayer.core.ui.components.LocalStashAvatarTarget
 import gomeng.dev.stashplayer.core.ui.components.StashAvatarTarget
 import gomeng.dev.stashplayer.core.ui.components.LocalStashPlayerExpanded
+import gomeng.dev.stashplayer.core.ui.components.LocalStashPlayerActive
 import gomeng.dev.stashplayer.core.ui.designsystem.StashSegmentedTabs
 import gomeng.dev.stashplayer.core.ui.designsystem.stashSpring
 import androidx.compose.animation.fadeIn
@@ -511,7 +512,7 @@ fun StashNavHost(
             onClick = { navigateSecondary(TopLevelDestination.Library.route) },
         )
     }
-    CompositionLocalProvider(LocalStashAvatarTarget provides avatarTarget, LocalStashPlayerExpanded provides playerExpanded, LocalStashThumbnailFlights provides thumbnailFlights) {
+    CompositionLocalProvider(LocalStashAvatarTarget provides avatarTarget, LocalStashPlayerExpanded provides playerExpanded, LocalStashPlayerActive provides (activePlayerSceneId != null), LocalStashThumbnailFlights provides thumbnailFlights) {
         updateChangelogNotice?.let { notice ->
             AppUpdateChangelogDialog(
                 notice = notice,

@@ -75,7 +75,7 @@ internal fun HomeFeedSettingsSheet(
 
             SettingsSectionTitle(stashString(R.string.home_feed_settings_show), stashString(R.string.home_feed_settings_show_hint))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap)) {
-                HomeFeedKind.entries.forEach { kind ->
+                HomeFeedKind.entries.filter { it != HomeFeedKind.Packs }.forEach { kind ->
                     FilterChip(
                         selected = kind !in draft.hiddenKinds,
                         onClick = {

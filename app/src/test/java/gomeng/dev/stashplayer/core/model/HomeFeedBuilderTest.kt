@@ -38,22 +38,17 @@ class HomeFeedBuilderTest {
     }
 
     @Test
-    fun `eight scenes of one performer within a week become a pack`() {
+    fun `many scenes of one performer stay separate posts`() {
         val burst = (1..8).map { scene("b$it", day(10 + it % 7, hour = it)) }
-        val older = scene("older", day(1))
-        val feed = buildHomeFeed(burst + older, emptyList(), HomeFeedSettings(), "2026-09-01")
+        val feed = buildHomeFeed(burst, emptyList(), HomeFeedSettings(), "2026-09-01")
 
-        val pack = feed.items.filterIsInstance<HomeFeedItem.Pack>().single()
-        assertEquals(8, pack.scenes.size)
-        assertEquals("p1", pack.performer.id)
-        // The scene outside the 7-day burst stays a normal post.
-        assertEquals(listOf("scene:older"), feed.items.filterIsInstance<HomeFeedItem.Post>().map { it.key })
+        assertEquals(8, feed.items.size)
+        assertTrue(feed.items.all { it is HomeFeedItem.Post })
     }
 
     @Test
     fun `seven scenes stay separate posts`() {
         val feed = buildHomeFeed((1..7).map { scene("s$it", day(10, hour = it)) }, emptyList(), HomeFeedSettings(), "2026-09-01")
-        assertTrue(feed.items.none { it is HomeFeedItem.Pack })
         assertEquals(7, feed.items.size)
     }
 

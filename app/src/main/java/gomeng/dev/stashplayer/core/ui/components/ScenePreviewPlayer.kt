@@ -38,6 +38,16 @@ class ScenePreviewController(context: Context, private val headers: Map<String, 
     var firstFrameShown by mutableStateOf(false)
         private set
 
+    /** Paused by the viewer (tap on a feed video); cleared when another video starts. */
+    var paused by mutableStateOf(false)
+        private set
+
+    fun togglePause() {
+        if (activeSceneId == null) return
+        paused = !paused
+        if (paused) player.player.pause() else player.player.play()
+    }
+
     init {
         player.player.volume = 0f
         player.player.repeatMode = Player.REPEAT_MODE_ONE
@@ -88,11 +98,30 @@ class ScenePreviewController(context: Context, private val headers: Map<String, 
         player.prepare(uri = Uri.parse(previewUrl), title = sceneId, playWhenReady = true, requestHeaders = headers)
     }
 
+    /** Plays the whole video in a loop (feed posts), from the start. */
+    fun playVideo(sceneId: String, streamUrl: String?) {
+        if (streamUrl.isNullOrBlank()) {
+            stop()
+            return
+        }
+        if (sceneId == activeSceneId) return
+        activeSceneId = sceneId
+        firstFrameShown = false
+        paused = false
+        pendingFallback = null
+        player.prepare(uri = Uri.parse(streamUrl), title = sceneId, playWhenReady = true, requestHeaders = headers)
+    }
+
+    fun setVolume(volume: Float) {
+        player.player.volume = volume
+    }
+
     fun stop() {
         if (activeSceneId == null) return
         activeSceneId = null
         pendingFallback = null
         firstFrameShown = false
+        paused = false
         player.player.stop()
     }
 
@@ -114,6 +143,17 @@ internal fun String.toDurationMsOrNull(): Long? {
     if (parts.isEmpty() || parts.size > 3) return null
     return parts.fold(0L) { total, part -> total * 60 + part } * 1000
 }
+
+/**
+ * Whether feed videos play with sound. Off by default and for the life of the app process (one session): turning it
+ * on once keeps it on while you scroll, until the app is closed.
+ */
+object StashFeedSound {
+    var enabled by mutableStateOf(false)
+}
+
+/** True while any player (full or mini) is open; feed videos then stay silent so two sounds never mix. */
+val LocalStashPlayerActive = androidx.compose.runtime.compositionLocalOf { false }
 
 /** True while the full player covers the screen; previews and other video underneath stay quiet. */
 val LocalStashPlayerExpanded = androidx.compose.runtime.compositionLocalOf { false }

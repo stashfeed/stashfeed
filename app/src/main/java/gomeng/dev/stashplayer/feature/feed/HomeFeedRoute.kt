@@ -94,6 +94,11 @@ import gomeng.dev.stashplayer.core.network.StashServerProfile
 import gomeng.dev.stashplayer.core.network.StashSettingsRepository
 import gomeng.dev.stashplayer.core.player.ratingStepForStashRating100
 import gomeng.dev.stashplayer.core.ui.components.StashAvatarButton
+import androidx.compose.material.icons.automirrored.outlined.VolumeOff
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import gomeng.dev.stashplayer.core.ui.components.StashFeedSound
+import gomeng.dev.stashplayer.core.ui.components.ScenePreviewSurface
+import gomeng.dev.stashplayer.core.ui.components.ScenePreviewController
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import gomeng.dev.stashplayer.core.ui.designsystem.stashPressScale
 import gomeng.dev.stashplayer.core.ui.designsystem.rememberStashHaptics
@@ -127,7 +132,10 @@ import kotlinx.coroutines.launch
 private const val SEEN_POLL_MS = 250L
 
 /** Media taller than 4:5 or wider than ~1.91:1 is cropped, so one post never fills the whole screen. */
-private const val FEED_MEDIA_MIN_RATIO = 4f / 5f
+/** Tallest post: a full portrait video (9:16) keeps its shape. */
+private const val FEED_MEDIA_MIN_RATIO = 9f / 16f
+/** Gallery posts without a known size start at the classic 4:5. */
+private const val FEED_GALLERY_FALLBACK_RATIO = 4f / 5f
 private const val FEED_MEDIA_MAX_RATIO = 1.91f
 /** Galleries load their next photos when the carousel gets this close to the end. */
 private const val FEED_CAROUSEL_PRELOAD = 3
@@ -151,6 +159,13 @@ fun HomeFeedRoute(
     val viewModel: HomeFeedViewModel = viewModel()
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
+    val readyItems = (viewModel.state as? HomeFeedState.Ready)?.feed?.items.orEmpty()
+    val videosByKey = remember(readyItems) {
+        readyItems.filterIsInstance<HomeFeedItem.Post>().mapNotNull { post ->
+            feedInlineVideoFor(post.scene.scene.id, post.scene.previewUrl)?.let { post.key to it }
+        }.toMap()
+    }
+    val feedVideo = rememberFeedAutoplay(gridState, profile) { key -> videosByKey[key] }
     val snackbarHostState = remember { SnackbarHostState() }
     val tokens = LocalStashStyleTokens.current
     var ratingTarget by remember { mutableStateOf<SceneCardModel?>(null) }
@@ -306,6 +321,7 @@ fun HomeFeedRoute(
                         onOpenPerformer = onOpenPerformer,
                         onOpenLightbox = onOpenLightbox,
                         onRate = { ratingTarget = it },
+                        inlineVideo = feedVideo,
                     )
                     if (sections != null && sections.seen.isNotEmpty()) {
                         item(key = "caught_up", span = { GridItemSpan(maxLineSpan) }, contentType = "caught_up") {
@@ -326,6 +342,7 @@ fun HomeFeedRoute(
                                 onOpenPerformer = onOpenPerformer,
                                 onOpenLightbox = onOpenLightbox,
                                 onRate = { ratingTarget = it },
+                                inlineVideo = feedVideo,
                             )
                         }
                     }
@@ -366,6 +383,7 @@ private fun LazyGridScope.feedPostItems(
     onOpenPerformer: (String) -> Unit,
     onOpenLightbox: (FeedLightboxRequest) -> Unit,
     onRate: (SceneCardModel) -> Unit,
+    inlineVideo: ScenePreviewController,
 ) {
     items(
         items = items,
@@ -374,7 +392,6 @@ private fun LazyGridScope.feedPostItems(
             when (item) {
                 is HomeFeedItem.Post -> "post"
                 is HomeFeedItem.GalleryPost -> "gallery"
-                is HomeFeedItem.Pack -> "pack"
             }
         },
     ) { item ->
@@ -389,6 +406,7 @@ private fun LazyGridScope.feedPostItems(
                     onRate = { onRate(item.scene.scene) },
                     onAddO = { viewModel.addO(item.scene.scene.id) },
                     onRemoveO = { viewModel.removeO(item.scene.scene.id) },
+                    inlineVideo = inlineVideo,
                 )
                 is HomeFeedItem.GalleryPost -> GalleryPost(
                     post = item,
@@ -410,13 +428,6 @@ private fun LazyGridScope.feedPostItems(
                         )
                     },
                     onOpenGallery = { onOpenGallery(item.gallery.gallery.id) },
-                    onOpenPerformer = onOpenPerformer,
-                )
-                is HomeFeedItem.Pack -> PackPost(
-                    pack = item,
-                    serverProfile = profile,
-                    tokens = tokens,
-                    onOpenScene = { scene -> onOpenScene(scene.id, item.scenes.map { it.scene }) },
                     onOpenPerformer = onOpenPerformer,
                 )
             }
@@ -728,6 +739,8 @@ internal fun ScenePost(
     onRate: () -> Unit,
     onAddO: () -> Unit,
     onRemoveO: () -> Unit,
+    /** The feed's shared inline player; when set, the video plays in the post and only Open goes to the player. */
+    inlineVideo: ScenePreviewController? = null,
 ) {
     val scene = post.scene.scene
     val model = rememberStashThumbnailModel(scene.thumbnailUrl, serverProfile)
@@ -747,34 +760,76 @@ internal fun ScenePost(
     PostTitle(scene.title, tokens)
     val flights = LocalStashThumbnailFlights.current
     val mediaAnchor = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val haptics = rememberStashHaptics()
+    val openInPlayer = {
+        flights?.record(scene.id, mediaAnchor[0], model)
+        onOpen()
+    }
+    val playingHere = inlineVideo != null && inlineVideo.activeSceneId == scene.id
+    // The video's own shape: portrait stays portrait, landscape stays landscape.
     MediaFrame(ratio = feedMediaRatio(post.scene.width, post.scene.height, 16f / 9f), tokens = tokens) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .onPlaced { mediaAnchor[0] = it }
                 .clickable {
-                    flights?.record(scene.id, mediaAnchor[0], model)
-                    onOpen()
+                    if (inlineVideo != null) {
+                        // Tapping the video pauses or resumes it (or starts this one); sound is the speaker button,
+                        // the full player is Open.
+                        haptics.tick()
+                        if (inlineVideo.activeSceneId == scene.id) {
+                            inlineVideo.togglePause()
+                        } else {
+                            feedInlineVideoFor(scene.id, post.scene.previewUrl)?.let { inlineVideo.playVideo(it.sceneId, it.streamUrl) }
+                        }
+                    } else {
+                        openInPlayer()
+                    }
                 },
         ) {
             if (model != null) {
                 AsyncImage(model = model, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             }
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(56.dp)
-                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(Icons.Outlined.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(30.dp))
+            inlineVideo?.let { ScenePreviewSurface(it, scene.id) }
+            if (!(playingHere && inlineVideo?.firstFrameShown == true && !inlineVideo.paused)) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(56.dp)
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Outlined.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(30.dp))
+                }
+            }
+            if (inlineVideo != null) {
+                val soundOn = StashFeedSound.enabled
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(10.dp)
+                        .size(34.dp)
+                        .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                        .clickable {
+                            haptics.tick()
+                            StashFeedSound.enabled = !soundOn
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        if (soundOn) Icons.AutoMirrored.Outlined.VolumeUp else Icons.AutoMirrored.Outlined.VolumeOff,
+                        contentDescription = stashString(if (soundOn) R.string.feed_sound_off else R.string.feed_sound_on),
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
             if (scene.durationText.isNotBlank()) {
                 OverlayBadge(scene.durationText, Modifier.align(Alignment.BottomEnd).padding(10.dp))
             }
         }
     }
-    SceneActionBar(scene = scene, tokens = tokens, onRate = onRate, onAddO = onAddO, onRemoveO = onRemoveO, onOpen = onOpen)
+    SceneActionBar(scene = scene, tokens = tokens, onRate = onRate, onAddO = onAddO, onRemoveO = onRemoveO, onOpen = openInPlayer)
     val meta = listOfNotNull(
         scene.studio.takeIf { it.isNotBlank() && it != "Stash" },
         post.scene.date,
@@ -861,9 +916,9 @@ internal fun GalleryPost(
     val totalCount = maxOf(gallery.imageCount ?: 0, loaded.size)
     val first = loaded.firstOrNull()
     // The frame keeps the first photo's shape for every slide, so the post doesn't jump while swiping.
-    val ratio = feedMediaRatio(first?.width, first?.height, FEED_MEDIA_MIN_RATIO)
-    // Photos plus the "view gallery" end slide; just the cover until the photos arrive.
-    val slideCount = if (loaded.isEmpty()) 1 else loaded.size + 1
+    val ratio = feedMediaRatio(first?.width, first?.height, FEED_GALLERY_FALLBACK_RATIO)
+    // Just the photos (the post itself is the gallery view); only the cover until the photos arrive.
+    val slideCount = maxOf(1, loaded.size)
     val pagerState = rememberPagerState { slideCount }
 
     LaunchedEffect(pagerState, loaded.size, images?.hasMore) {
@@ -886,7 +941,7 @@ internal fun GalleryPost(
         HorizontalPager(
             state = pagerState,
             beyondViewportPageCount = 1,
-            key = { index -> loaded.getOrNull(index)?.id ?: "end$index" },
+            key = { index -> loaded.getOrNull(index)?.id ?: "cover$index" },
             modifier = Modifier.fillMaxSize(),
         ) { page ->
             val image = loaded.getOrNull(page)
@@ -903,11 +958,11 @@ internal fun GalleryPost(
                         AsyncImage(model = model, contentDescription = image.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                     }
                 }
-                else -> GalleryEndSlide(count = totalCount, onClick = onOpenGallery)
+                else -> Unit
             }
         }
         OverlayBadge(
-            text = if (pagerState.currentPage < loaded.size) "${pagerState.currentPage + 1}/$totalCount" else totalCount.toString(),
+            text = if (loaded.isNotEmpty()) "${pagerState.currentPage + 1}/$totalCount" else totalCount.toString(),
             modifier = Modifier.align(Alignment.TopEnd).padding(10.dp),
             icon = { Icon(Icons.Outlined.PhotoLibrary, null, tint = Color.White, modifier = Modifier.size(13.dp)) },
         )
@@ -932,22 +987,6 @@ internal fun GalleryPost(
             onClick = onOpenGallery,
             icon = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp)) },
         )
-    }
-}
-
-@Composable
-private fun GalleryEndSlide(count: Int, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
-    ) {
-        Icon(Icons.Outlined.Collections, contentDescription = null, modifier = Modifier.size(36.dp))
-        Text(stashString(R.string.home_feed_view_gallery), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(stashString(R.string.home_feed_photo_count, count), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -976,48 +1015,6 @@ private fun CarouselDots(count: Int, current: Int) {
     }
 }
 
-@Composable
-private fun PackPost(
-    pack: HomeFeedItem.Pack,
-    serverProfile: StashServerProfile?,
-    tokens: StashStyleTokens,
-    onOpenScene: (SceneCardModel) -> Unit,
-    onOpenPerformer: (String) -> Unit,
-) {
-    PostHeader(
-        performers = listOf(pack.performer),
-        createdAt = pack.createdAt,
-        serverProfile = serverProfile,
-        tokens = tokens,
-        onOpenPerformer = onOpenPerformer,
-        badge = stashString(R.string.home_feed_pack_badge, pack.scenes.size),
-    )
-    Spacer(Modifier.height(10.dp))
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = tokens.textInset),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        itemsIndexed(pack.scenes, key = { _, scene -> scene.scene.id }) { _, scene ->
-            val model = rememberStashThumbnailModel(scene.scene.thumbnailUrl, serverProfile)
-            Column(modifier = Modifier.width(220.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(StashRadius.M))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .clickable { onOpenScene(scene.scene) },
-                ) {
-                    if (model != null) AsyncImage(model = model, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                    if (scene.scene.durationText.isNotBlank()) OverlayBadge(scene.scene.durationText, Modifier.align(Alignment.BottomEnd).padding(6.dp))
-                }
-                Text(scene.scene.title, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-    }
-}
-
-/** Grey placeholder in the shape of a post while the feed loads. */
 @Composable
 private fun PostSkeleton(tokens: StashStyleTokens) {
     val block = MaterialTheme.colorScheme.surfaceContainerHigh

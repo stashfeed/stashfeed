@@ -166,7 +166,6 @@ internal class HomeFeedViewModel : ViewModel() {
     fun playableScenes(): List<SceneCardModel> = (state as? HomeFeedState.Ready)?.feed?.items.orEmpty().flatMap { item ->
         when (item) {
             is HomeFeedItem.Post -> listOf(item.scene.scene)
-            is HomeFeedItem.Pack -> item.scenes.map { it.scene }
             is HomeFeedItem.GalleryPost -> emptyList()
         }
     }

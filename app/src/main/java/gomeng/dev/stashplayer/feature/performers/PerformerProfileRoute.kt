@@ -96,6 +96,8 @@ import gomeng.dev.stashplayer.core.ui.discovery.headerChips
 import gomeng.dev.stashplayer.core.ui.theme.LocalStashStyleTokens
 import gomeng.dev.stashplayer.feature.feed.FeedLightboxRequest
 import gomeng.dev.stashplayer.feature.feed.GalleryPost
+import gomeng.dev.stashplayer.feature.feed.rememberFeedAutoplay
+import gomeng.dev.stashplayer.feature.feed.feedInlineVideoFor
 import gomeng.dev.stashplayer.feature.feed.PostCard
 import gomeng.dev.stashplayer.feature.feed.ScenePost
 import gomeng.dev.stashplayer.feature.gallery.GalleryEntitySectionSpec
@@ -187,6 +189,13 @@ fun PerformerProfileRoute(
     }
 
     val feedItems = viewModel.feedState.merge.emitted
+    val feedVideos = remember(feedItems) {
+        feedItems.filterIsInstance<PerformerFeedItem.Scene>().mapNotNull { item ->
+            feedInlineVideoFor(item.scene.id, item.feed?.previewUrl)?.let { item.key to it }
+        }.toMap()
+    }
+    // Only the Feed tab plays inline; its post keys are the only ones the lookup knows.
+    val feedVideo = rememberFeedAutoplay(gridState, profile) { key -> if (viewModel.tab == PerformerProfileTab.Feed) feedVideos[key] else null }
     val sceneState = viewModel.scenes.state
     val photoState = viewModel.photos.state
     val activeItemCount = when (viewModel.tab) {
@@ -390,6 +399,7 @@ fun PerformerProfileRoute(
                                         onRate = { ratingTarget = scene },
                                         onAddO = { viewModel.addO(scene) },
                                         onRemoveO = { viewModel.removeO(scene) },
+                                        inlineVideo = feedVideo,
                                     )
                                 }
                                 is PerformerFeedItem.Gallery -> {
