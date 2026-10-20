@@ -8,9 +8,9 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-const val STASH_ANDROID_RELEASES_URL = "https://github.com/gomeng-dev/stash-player-android/releases"
+const val STASH_ANDROID_RELEASES_URL = "https://github.com/stashy-app/stashy/releases"
 const val STASH_ANDROID_LATEST_RELEASE_API_URL =
-    "https://api.github.com/repos/gomeng-dev/stash-player-android/releases/latest"
+    "https://api.github.com/repos/stashy-app/stashy/releases/latest"
 
 data class AppUpdateApkAsset(
     val name: String,
@@ -41,7 +41,7 @@ class AppUpdateChecker(
         val request = Request.Builder()
             .url(latestReleaseApiUrl)
             .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "Stash-Android-Player")
+            .header("User-Agent", "Stashy-Android")
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {

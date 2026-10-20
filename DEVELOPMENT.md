@@ -28,6 +28,18 @@ export ANDROID_SIGNING_KEY_PASSWORD="<key password>"
 ./gradlew --no-daemon :app:assembleRelease
 ```
 
+Locally you can instead keep the signing values in `~/.stashy/keystore.properties` (or point
+`STASHY_KEYSTORE_PROPERTIES` at another file):
+
+```properties
+android.signing.storeFile=/home/you/.stashy/stashy-release.jks
+android.signing.storePassword=...
+android.signing.keyAlias=stashy
+android.signing.keyPassword=...
+```
+
+Without signing values, release builds fall back to the debug key and cannot update an official Stashy install.
+
 Do not commit keystores, signing credentials, APKs, AABs, or build outputs.
 
 ## Tech Stack

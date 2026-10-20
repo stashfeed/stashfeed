@@ -21,7 +21,7 @@ class AppUpdateInstaller(
     ): File = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url(asset.downloadUrl)
-            .header("User-Agent", "Stash-Android-Player")
+            .header("User-Agent", "Stashy-Android")
             .build()
         val updateDir = File(context.cacheDir, "updates").apply { mkdirs() }
         val apkFile = File(updateDir, asset.name.sanitizeApkFileName())
