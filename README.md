@@ -21,6 +21,12 @@ A social-style feed, a For You reel, performer profiles and a smooth player, all
 
 </div>
 
+> **Built on the work of others.** Stashy is a client for [**Stash**](https://github.com/stashapp/stash) by the
+> Stash team, a fork of [**stash-player-android**](https://github.com/gomeng-dev/stash-player-android) by
+> [gomeng-dev](https://github.com/gomeng-dev), and its feed and reel follow the
+> [**Binge**](https://github.com/ordureconnoisseur/binge) plugin by
+> [ordureconnoisseur](https://github.com/ordureconnoisseur). See [Credits](#credits) for who made what.
+
 ---
 
 ## What it does
@@ -111,13 +117,15 @@ Stashy talks only to your Stash server. There is no account, no analytics and no
 
 ## Credits
 
-- Stashy grew out of [**stash-player-android**](https://github.com/gomeng-dev/stash-player-android) by gomeng-dev,
-  which it extends with the feed, reel, performer and design work described above.
-- Feed, stories and the For You reel follow the ideas of the [**Binge**](https://github.com/ordureconnoisseur/binge)
-  Stash plugin.
-- [**Inter**](https://rsms.me/inter/) by Rasmus Andersson, under the SIL Open Font License
-  ([license](app/src/main/assets/licenses/inter-OFL.txt)).
-- Built with Jetpack Compose, Media3/ExoPlayer, Coil, Room and OkHttp.
+| Project | By | What Stashy owes it | License |
+| --- | --- | --- | --- |
+| [**Stash**](https://github.com/stashapp/stash) · [stashapp.cc](https://stashapp.cc) | [Stash team and contributors](https://github.com/stashapp/stash/graphs/contributors) | The server Stashy is a client for: every scene, performer, gallery, tag, rating, preview and saved filter comes from it. | AGPL-3.0 |
+| [**stash-player-android**](https://github.com/gomeng-dev/stash-player-android) | [gomeng-dev](https://github.com/gomeng-dev) | The app Stashy is forked from: Stash connection and sign-in, the player, queue and lists, galleries and images, saved filters and the project itself. Its history is kept in this repo. | MIT |
+| [**Binge**](https://github.com/ordureconnoisseur/binge) | [ordureconnoisseur](https://github.com/ordureconnoisseur) | The model for Stashy's social side: Home feed with stories and reposts, the For You reel with Random and Chained modes, performer profile feeds, gallery gestures and seen posts. | AGPL-3.0 |
+| [**Stash Hybrid Recommendations**](https://github.com/gomeng-dev/stash-recommendation-server) | [gomeng-dev](https://github.com/gomeng-dev) | Similar-video recommendations in the player, when installed on your server. | – |
+| [**Inter**](https://rsms.me/inter/) | [Rasmus Andersson](https://github.com/rsms) | The typeface. | OFL-1.1 |
+
+Thank you to all of them. More detail, including the libraries Stashy is built with, is in [CREDITS.md](CREDITS.md).
 
 Stashy is an independent project and is not affiliated with Stash or its developers. It contains no media of its
 own; what it shows depends entirely on your library. If your library contains adult content, keep the app and its
