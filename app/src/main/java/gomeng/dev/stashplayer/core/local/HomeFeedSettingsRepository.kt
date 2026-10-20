@@ -1,6 +1,7 @@
 package gomeng.dev.stashplayer.core.local
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -29,6 +30,7 @@ class HomeFeedSettingsRepository(private val context: Context) {
             hiddenKinds = prefs[Keys.HiddenKinds]?.let { stored ->
                 stored.split(',').mapNotNull { name -> HomeFeedKind.entries.firstOrNull { it.name == name } }.toSet()
             } ?: defaults.hiddenKinds,
+            hideSeen = prefs[Keys.HideSeen] ?: defaults.hideSeen,
         )
     }
 
@@ -38,6 +40,7 @@ class HomeFeedSettingsRepository(private val context: Context) {
             prefs[Keys.AllowedGenders] = settings.allowedGenders.joinToString(",") { it.name }
             prefs[Keys.IgnoredGalleryFolders] = settings.ignoredGalleryFolders.joinToString(", ")
             prefs[Keys.HiddenKinds] = settings.hiddenKinds.joinToString(",") { it.name }
+            prefs[Keys.HideSeen] = settings.hideSeen
         }
     }
 
@@ -46,6 +49,7 @@ class HomeFeedSettingsRepository(private val context: Context) {
         val AllowedGenders = stringPreferencesKey("allowed_genders")
         val IgnoredGalleryFolders = stringPreferencesKey("ignored_gallery_folders")
         val HiddenKinds = stringPreferencesKey("hidden_kinds")
+        val HideSeen = booleanPreferencesKey("hide_seen")
     }
 }
 

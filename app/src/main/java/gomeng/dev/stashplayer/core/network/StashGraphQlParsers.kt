@@ -907,6 +907,7 @@ private data class ApiScene(
             createdAt = createdAt?.trim()?.takeIf { it.isNotBlank() },
             oCounter = oCounter,
             rating100 = rating100,
+            previewUrl = paths?.preview?.trim()?.takeIf { it.isNotBlank() },
         )
     }
 

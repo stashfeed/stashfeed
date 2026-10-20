@@ -99,7 +99,18 @@ import gomeng.dev.stashplayer.core.ui.theme.LocalStashStyleTokens
 import gomeng.dev.stashplayer.core.ui.theme.StashStyleTokens
 import gomeng.dev.stashplayer.feature.performers.PerformerImage
 import gomeng.dev.stashplayer.feature.shorts.ForYouRatingDialog
+import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.DisposableEffect
+import gomeng.dev.stashplayer.core.model.SEEN_FEED_POST_DWELL_MS
+import gomeng.dev.stashplayer.core.model.SEEN_FEED_POST_MIN_VISIBLE_FRACTION
+import gomeng.dev.stashplayer.core.model.splitBySeen
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+/** How often visible posts are checked for the "seen" dwell time. */
+private const val SEEN_POLL_MS = 250L
 
 /** Media taller than 4:5 or wider than ~1.91:1 is cropped, so one post never fills the whole screen. */
 private const val FEED_MEDIA_MIN_RATIO = 4f / 5f
@@ -135,6 +146,37 @@ fun HomeFeedRoute(
         val activeSettings = feedSettings ?: return@LaunchedEffect
         viewModel.bind(activeProfile, activeSettings)
     }
+    DisposableEffect(viewModel) { onDispose { viewModel.flushSeenNow() } }
+
+    // A post is "seen" once at least half of it stayed on screen for a second (only counted while hiding is on).
+    val readyFeed = (viewModel.state as? HomeFeedState.Ready)?.feed
+    val createdAtByKey = remember(readyFeed) { readyFeed?.items?.associate { it.key to it.createdAt }.orEmpty() }
+    LaunchedEffect(gridState, createdAtByKey, feedSettings?.hideSeen) {
+        if (feedSettings?.hideSeen != true || createdAtByKey.isEmpty()) return@LaunchedEffect
+        val visibleSince = HashMap<String, Long>()
+        while (true) {
+            delay(SEEN_POLL_MS)
+            val layout = gridState.layoutInfo
+            val now = System.currentTimeMillis()
+            val viewportStart = layout.viewportStartOffset
+            val viewportEnd = layout.viewportEndOffset
+            val onScreen = HashSet<String>()
+            layout.visibleItemsInfo.forEach { info ->
+                val key = info.key as? String ?: return@forEach
+                val createdAt = createdAtByKey[key] ?: return@forEach
+                val top = info.offset.y
+                val bottom = top + info.size.height
+                val visible = (minOf(bottom, viewportEnd) - maxOf(top, viewportStart)).coerceAtLeast(0)
+                if (info.size.height > 0 && visible.toFloat() / info.size.height >= SEEN_FEED_POST_MIN_VISIBLE_FRACTION) {
+                    onScreen += key
+                    val since = visibleSince.getOrPut(key) { now }
+                    if (now - since >= SEEN_FEED_POST_DWELL_MS) viewModel.markSeen(key, createdAt)
+                }
+            }
+            visibleSince.keys.retainAll(onScreen)
+        }
+    }
+
     LaunchedEffect(viewModel.actionError) {
         viewModel.actionError?.let { message ->
             snackbarHostState.showSnackbar(stashString(R.string.for_you_action_failed, message))
@@ -229,59 +271,39 @@ fun HomeFeedRoute(
                             )
                         }
                     }
-                    items(
-                        items = feed.items,
-                        key = { it.key },
-                        contentType = { item ->
-                            when (item) {
-                                is HomeFeedItem.Post -> "post"
-                                is HomeFeedItem.GalleryPost -> "gallery"
-                                is HomeFeedItem.Pack -> "pack"
-                            }
-                        },
-                    ) { item ->
-                        PostCard(tokens) {
-                            when (item) {
-                                is HomeFeedItem.Post -> ScenePost(
-                                    post = item,
-                                    serverProfile = profile,
-                                    tokens = tokens,
-                                    onOpen = { onOpenScene(item.scene.scene.id, viewModel.playableScenes()) },
-                                    onOpenPerformer = onOpenPerformer,
-                                    onRate = { ratingTarget = item.scene.scene },
-                                    onAddO = { viewModel.addO(item.scene.scene.id) },
-                                    onRemoveO = { viewModel.removeO(item.scene.scene.id) },
-                                )
-                                is HomeFeedItem.GalleryPost -> GalleryPost(
-                                    post = item,
-                                    images = viewModel.galleryImages[item.gallery.gallery.id],
-                                    serverProfile = profile,
-                                    tokens = tokens,
-                                    onNeedImages = { viewModel.ensureGalleryImages(item.gallery.gallery.id) },
-                                    onNeedMoreImages = { viewModel.loadMoreGalleryImages(item.gallery.gallery.id) },
-                                    onOpenPhoto = { index ->
-                                        val galleryId = item.gallery.gallery.id
-                                        onOpenLightbox(
-                                            FeedLightboxRequest(
-                                                title = item.gallery.gallery.title,
-                                                startIndex = index,
-                                                totalCount = item.gallery.gallery.imageCount ?: 0,
-                                                images = { viewModel.galleryImages[galleryId]?.images.orEmpty() },
-                                                onNeedMore = { viewModel.loadMoreGalleryImages(galleryId) },
-                                            ),
-                                        )
-                                    },
-                                    onOpenGallery = { onOpenGallery(item.gallery.gallery.id) },
-                                    onOpenPerformer = onOpenPerformer,
-                                )
-                                is HomeFeedItem.Pack -> PackPost(
-                                    pack = item,
-                                    serverProfile = profile,
-                                    tokens = tokens,
-                                    onOpenScene = { scene -> onOpenScene(scene.id, item.scenes.map { it.scene }) },
-                                    onOpenPerformer = onOpenPerformer,
-                                )
-                            }
+                    val sections = if (activeSettings.hideSeen) feed.splitBySeen(viewModel.seenSnapshot) else null
+                    val visibleItems = sections?.unseen ?: feed.items
+                    feedPostItems(
+                        items = visibleItems,
+                        viewModel = viewModel,
+                        profile = profile,
+                        tokens = tokens,
+                        onOpenScene = onOpenScene,
+                        onOpenGallery = onOpenGallery,
+                        onOpenPerformer = onOpenPerformer,
+                        onOpenLightbox = onOpenLightbox,
+                        onRate = { ratingTarget = it },
+                    )
+                    if (sections != null && sections.seen.isNotEmpty()) {
+                        item(key = "caught_up", span = { GridItemSpan(maxLineSpan) }, contentType = "caught_up") {
+                            CaughtUpDivider(
+                                seenCount = sections.seen.size,
+                                expanded = viewModel.showSeenPosts,
+                                onToggle = { viewModel.showSeenPosts = !viewModel.showSeenPosts },
+                            )
+                        }
+                        if (viewModel.showSeenPosts) {
+                            feedPostItems(
+                                items = sections.seen,
+                                viewModel = viewModel,
+                                profile = profile,
+                                tokens = tokens,
+                                onOpenScene = onOpenScene,
+                                onOpenGallery = onOpenGallery,
+                                onOpenPerformer = onOpenPerformer,
+                                onOpenLightbox = onOpenLightbox,
+                                onRate = { ratingTarget = it },
+                            )
                         }
                     }
                 }
@@ -307,6 +329,111 @@ fun HomeFeedRoute(
             )
         }
         SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/** One grid item per post; used for both the new posts and the expanded "seen" section. */
+private fun LazyGridScope.feedPostItems(
+    items: List<HomeFeedItem>,
+    viewModel: HomeFeedViewModel,
+    profile: StashServerProfile?,
+    tokens: StashStyleTokens,
+    onOpenScene: (sceneId: String, scenes: List<SceneCardModel>) -> Unit,
+    onOpenGallery: (String) -> Unit,
+    onOpenPerformer: (String) -> Unit,
+    onOpenLightbox: (FeedLightboxRequest) -> Unit,
+    onRate: (SceneCardModel) -> Unit,
+) {
+    items(
+        items = items,
+        key = { it.key },
+        contentType = { item ->
+            when (item) {
+                is HomeFeedItem.Post -> "post"
+                is HomeFeedItem.GalleryPost -> "gallery"
+                is HomeFeedItem.Pack -> "pack"
+            }
+        },
+    ) { item ->
+        PostCard(tokens) {
+            when (item) {
+                is HomeFeedItem.Post -> ScenePost(
+                    post = item,
+                    serverProfile = profile,
+                    tokens = tokens,
+                    onOpen = { onOpenScene(item.scene.scene.id, viewModel.playableScenes()) },
+                    onOpenPerformer = onOpenPerformer,
+                    onRate = { onRate(item.scene.scene) },
+                    onAddO = { viewModel.addO(item.scene.scene.id) },
+                    onRemoveO = { viewModel.removeO(item.scene.scene.id) },
+                )
+                is HomeFeedItem.GalleryPost -> GalleryPost(
+                    post = item,
+                    images = viewModel.galleryImages[item.gallery.gallery.id],
+                    serverProfile = profile,
+                    tokens = tokens,
+                    onNeedImages = { viewModel.ensureGalleryImages(item.gallery.gallery.id) },
+                    onNeedMoreImages = { viewModel.loadMoreGalleryImages(item.gallery.gallery.id) },
+                    onOpenPhoto = { index ->
+                        val galleryId = item.gallery.gallery.id
+                        onOpenLightbox(
+                            FeedLightboxRequest(
+                                title = item.gallery.gallery.title,
+                                startIndex = index,
+                                totalCount = item.gallery.gallery.imageCount ?: 0,
+                                images = { viewModel.galleryImages[galleryId]?.images.orEmpty() },
+                                onNeedMore = { viewModel.loadMoreGalleryImages(galleryId) },
+                            ),
+                        )
+                    },
+                    onOpenGallery = { onOpenGallery(item.gallery.gallery.id) },
+                    onOpenPerformer = onOpenPerformer,
+                )
+                is HomeFeedItem.Pack -> PackPost(
+                    pack = item,
+                    serverProfile = profile,
+                    tokens = tokens,
+                    onOpenScene = { scene -> onOpenScene(scene.id, item.scenes.map { it.scene }) },
+                    onOpenPerformer = onOpenPerformer,
+                )
+            }
+        }
+    }
+}
+
+/** "You're all caught up" between new and already-seen posts; the seen ones stay folded until asked for. */
+@Composable
+private fun CaughtUpDivider(seenCount: Int, expanded: Boolean, onToggle: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .border(BorderStroke(2.5.dp, LocalStashStyleTokens.current.storyRing), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(28.dp))
+        }
+        Text(stashString(R.string.home_feed_caught_up_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(
+            stashString(R.string.home_feed_caught_up_message),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = onToggle) {
+            Text(
+                if (expanded) {
+                    stashString(R.string.home_feed_hide_seen)
+                } else {
+                    stashString(R.string.home_feed_show_seen, seenCount)
+                },
+            )
+        }
     }
 }
 

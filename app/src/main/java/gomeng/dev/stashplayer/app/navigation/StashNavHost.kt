@@ -18,6 +18,9 @@ import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -47,6 +50,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -57,6 +61,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -94,6 +99,9 @@ import gomeng.dev.stashplayer.core.network.passwordSessionStartupRefreshKey
 import gomeng.dev.stashplayer.core.network.shouldRefreshPasswordSessionOnStartup
 import gomeng.dev.stashplayer.core.player.PlaybackOrientationMode
 import gomeng.dev.stashplayer.core.ui.theme.LocalStashStyleTokens
+import gomeng.dev.stashplayer.core.ui.components.LocalCollapsingChromeVisible
+import gomeng.dev.stashplayer.core.ui.components.rememberCollapsingChromeState
+import gomeng.dev.stashplayer.core.model.StashGalleryBrowseMode
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScale
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScaleProvider
 import gomeng.dev.stashplayer.feature.gallery.GalleryDetailRoute
@@ -612,13 +620,20 @@ fun StashNavHost(
                     }
                     composable(TopLevelDestination.Explore.route) {
                         var segment by rememberSaveable { mutableStateOf(ExploreSegment.Videos) }
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            ExploreSegmentRow(
-                                selected = segment,
-                                onSelect = { segment = it },
-                                isFoldLikeLayout = isFoldLikeLayout,
-                            )
+                        val chrome = rememberCollapsingChromeState()
+                        Column(modifier = Modifier.fillMaxSize().nestedScroll(chrome.connection)) {
+                            AnimatedVisibility(visible = chrome.visible, enter = expandVertically(), exit = shrinkVertically()) {
+                                ExploreSegmentRow(
+                                    selected = segment,
+                                    onSelect = {
+                                        segment = it
+                                        chrome.show()
+                                    },
+                                    isFoldLikeLayout = isFoldLikeLayout,
+                                )
+                            }
                             Box(modifier = Modifier.weight(1f)) {
+                              CompositionLocalProvider(LocalCollapsingChromeVisible provides chrome.visible) {
                                 when (segment) {
                                     ExploreSegment.Videos -> ExploreRoute(
                                         isFoldLikeLayout = isFoldLikeLayout,
@@ -632,7 +647,9 @@ fun StashNavHost(
                                         },
                                         onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
                                     )
-                                    ExploreSegment.Photos -> GalleryRoute(
+                                    ExploreSegment.Photos,
+                                    ExploreSegment.Galleries,
+                                    -> GalleryRoute(
                                         isFoldLikeLayout = isFoldLikeLayout,
                                         onOpenGallery = { galleryId ->
                                             navController.navigate(galleryDetailRouteForGallery(galleryId))
@@ -644,8 +661,14 @@ fun StashNavHost(
                                             )
                                         },
                                         onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
+                                        forcedBrowseMode = if (segment == ExploreSegment.Photos) {
+                                            StashGalleryBrowseMode.Images
+                                        } else {
+                                            StashGalleryBrowseMode.Galleries
+                                        },
                                     )
                                 }
+                              }
                             }
                         }
                     }
@@ -924,6 +947,7 @@ private fun isTopLevelDestinationSelected(
 private enum class ExploreSegment(val labelRes: Int) {
     Videos(R.string.explore_segment_videos),
     Photos(R.string.explore_segment_photos),
+    Galleries(R.string.explore_segment_galleries),
 }
 
 @Composable

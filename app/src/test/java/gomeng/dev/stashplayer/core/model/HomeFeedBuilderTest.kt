@@ -114,4 +114,24 @@ class HomeFeedBuilderTest {
         assertEquals(listOf("scene:post"), feed.items.map { it.key })
         assertFalse(feed.stories.isEmpty())
     }
+
+    @Test
+    fun `seen posts older than the keep window are pruned`() {
+        val seen = mapOf("scene:old" to "2026-06-01", "scene:edge" to "2026-07-22", "scene:new" to "2026-10-19")
+        val pruned = pruneSeenFeedPosts(seen, java.time.LocalDate.parse("2026-10-20"), keepDays = 90)
+        assertEquals(setOf("scene:edge", "scene:new"), pruned.keys)
+    }
+
+    @Test
+    fun `feed splits into unseen and seen in feed order`() {
+        val feed = buildHomeFeed(
+            scenes = listOf(scene("a", day(13)), scene("b", day(12)), scene("c", day(11))),
+            galleries = emptyList(),
+            settings = HomeFeedSettings(),
+            windowStartDate = "2026-09-01",
+        )
+        val sections = feed.splitBySeen(setOf("scene:b"))
+        assertEquals(listOf("scene:a", "scene:c"), sections.unseen.map { it.key })
+        assertEquals(listOf("scene:b"), sections.seen.map { it.key })
+    }
 }

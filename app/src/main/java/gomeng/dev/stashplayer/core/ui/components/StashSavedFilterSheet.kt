@@ -55,6 +55,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import gomeng.dev.stashplayer.R
+import gomeng.dev.stashplayer.core.model.StashServerSavedFilter
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -71,6 +72,8 @@ fun StashSavedFilterSheet(
     onQuickSaveCurrentFilter: (String, StashVideoFilterState) -> Unit,
     onDeleteSavedFilter: (LocalSavedVideoFilter) -> Unit,
     onDismiss: () -> Unit,
+    serverFilters: List<StashServerSavedFilter> = emptyList(),
+    onApplyServerFilter: (StashServerSavedFilter) -> Unit = {},
 ) {
     var savedFilterSearchQuery by remember { mutableStateOf("") }
     val existingNames = savedFilters.map { it.name }
@@ -133,6 +136,34 @@ fun StashSavedFilterSheet(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
+                if (serverFilters.isNotEmpty()) {
+                    item(key = "server_saved_filters") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(stashString(R.string.saved_filters_from_stash), style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                text = stashString(R.string.saved_filters_from_stash_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                serverFilters.forEach { filter ->
+                                    StashVisibilityFilterChip(
+                                        selected = currentFilter.savedFilter?.id == "stash:${filter.id}",
+                                        onClick = {
+                                            onApplyServerFilter(filter)
+                                            onDismiss()
+                                        },
+                                        label = { Text(filter.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 if (visibleQuickSavedFilters.isNotEmpty()) {
                     item(key = "quick_saved_filters") {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

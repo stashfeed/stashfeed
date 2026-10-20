@@ -3,6 +3,8 @@ package gomeng.dev.stashplayer.core.network
 import android.net.Uri
 import gomeng.dev.stashplayer.core.model.SceneBulkDeleteResult
 import gomeng.dev.stashplayer.core.model.FeedGallery
+import gomeng.dev.stashplayer.core.model.StashSavedFilterMode
+import gomeng.dev.stashplayer.core.model.StashServerSavedFilter
 import gomeng.dev.stashplayer.core.model.FeedScene
 import gomeng.dev.stashplayer.core.model.PerformerDetailModel
 import gomeng.dev.stashplayer.core.model.PerformerListScope
@@ -231,7 +233,10 @@ class StashGraphQlClient(
         val parsedPage = parseFindScenesPageResponse(execute(FIND_SCENES_QUERY, variables))
         return parsedPage.copy(
             scenes = parsedPage.scenes.map { scene ->
-                scene.copy(thumbnailUrl = scene.thumbnailUrl?.let(profile::authenticatedUrl))
+                scene.copy(
+                    thumbnailUrl = scene.thumbnailUrl?.let(profile::authenticatedUrl),
+                    previewUrl = scene.previewUrl?.let(profile::authenticatedUrl),
+                )
             },
         )
     }
@@ -513,6 +518,21 @@ class StashGraphQlClient(
     suspend fun setPerformerFavorite(performerId: String, favorite: Boolean): Boolean = parsePerformerSetFavoriteResponse(
         execute(PERFORMER_SET_FAVORITE_MUTATION, mapOf("id" to performerId.trim(), "favorite" to favorite)),
     )
+
+    suspend fun findUiConfig(): org.json.JSONObject = parseUiConfigResponse(execute(UI_CONFIG_QUERY))
+
+    /** Filters saved in the Stash web UI for [mode]. */
+    suspend fun findServerSavedFilters(mode: StashSavedFilterMode): List<StashServerSavedFilter> =
+        parseSavedFiltersResponse(execute(FIND_SAVED_FILTERS_QUERY, mapOf("mode" to mode.graphQlValue)))
+
+    /** The web UI's default filter for [mode], when one is set (Stash 0.27+). */
+    suspend fun findServerDefaultFilter(mode: StashSavedFilterMode): StashServerSavedFilter? =
+        findUiConfig().defaultFilter(mode)
+
+    /** Writes one value into Stash's UI configuration; [key] may be a dotted path. */
+    suspend fun setUiSetting(key: String, value: Any?) {
+        parseConfigureUiSettingResponse(execute(CONFIGURE_UI_SETTING_MUTATION, mapOf("key" to key, "value" to value)))
+    }
 
     suspend fun findHomeFeedScenes(
         field: HomeFeedWindowField,
@@ -1343,6 +1363,8 @@ internal fun serverSortForStashVideoFilters(
 }
 
 private fun StashVideoFilterState.toGraphQlSceneFilterOrNull(): Map<String, Any?>? = buildMap {
+    // A filter saved in the Stash web UI is the base; the app's own criteria below refine or override it.
+    savedFilter?.criteria?.let { putAll(it) }
     tags.takeIf { it.isNotEmpty() }?.let { selectedTags ->
         put(
             "tags",

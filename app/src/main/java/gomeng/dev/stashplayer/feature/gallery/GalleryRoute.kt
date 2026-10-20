@@ -1,5 +1,9 @@
 package gomeng.dev.stashplayer.feature.gallery
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import gomeng.dev.stashplayer.core.ui.components.LocalCollapsingChromeVisible
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -412,6 +416,8 @@ fun GalleryRoute(
     onOpenPhoto: (Int, List<GalleryImageModel>) -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Pins the screen to galleries or images (Explore's own tabs choose); null keeps the in-screen switch. */
+    forcedBrowseMode: StashGalleryBrowseMode? = null,
 ) {
     val routeState: GalleryRouteStateViewModel = viewModel()
     DisposableEffect(Unit) {
@@ -757,9 +763,15 @@ fun GalleryRoute(
         }
     }
 
+    LaunchedEffect(forcedBrowseMode) {
+        val forced = forcedBrowseMode ?: return@LaunchedEffect
+        if (browseMode != forced) selectBrowseMode(forced, persistSelection = false)
+        galleryBrowseModeRestored = true
+    }
+
     LaunchedEffect(persistedGalleryBrowseMode) {
         val restoredMode = persistedGalleryBrowseMode ?: return@LaunchedEffect
-        if (!galleryBrowseModeRestored) {
+        if (forcedBrowseMode == null && !galleryBrowseModeRestored) {
             selectBrowseMode(restoredMode, persistSelection = false)
             galleryBrowseModeRestored = true
         }
@@ -938,6 +950,7 @@ fun GalleryRoute(
         isFoldLikeLayout = isFoldLikeLayout,
         browseMode = browseMode,
         onSelectBrowseMode = { mode -> selectBrowseMode(mode) },
+        showBrowseModeSwitch = forcedBrowseMode == null,
         inputText = if (browseMode == StashGalleryBrowseMode.Images) imageInputText else galleryInputText,
         onInputTextChange = { text ->
             if (browseMode == StashGalleryBrowseMode.Images) {
@@ -2137,6 +2150,7 @@ private fun GalleryContent(
     isFoldLikeLayout: Boolean,
     browseMode: StashGalleryBrowseMode,
     onSelectBrowseMode: (StashGalleryBrowseMode) -> Unit,
+    showBrowseModeSwitch: Boolean = true,
     inputText: String,
     onInputTextChange: (String) -> Unit,
     onClearInput: () -> Unit,
@@ -2194,13 +2208,22 @@ private fun GalleryContent(
             .padding(top = StashSpacing.SectionGap),
         verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
     ) {
-        StashScreenHeader(
+        val visibleCount = if (browseMode == StashGalleryBrowseMode.Images) {
+            images.size
+        } else {
+            galleries.size
+        }
+        val totalCount = if (browseMode == StashGalleryBrowseMode.Images) imagePageState.totalCount else pageState.totalCount
+        AnimatedVisibility(visible = LocalCollapsingChromeVisible.current, enter = expandVertically(), exit = shrinkVertically()) {
+        Column(verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap)) {
+        // Inside Explore the segment tabs already name the screen, so the big title goes.
+        if (showBrowseModeSwitch) StashScreenHeader(
             title = if (headerPolicy.showTitle) stringResource(R.string.gallery_screen_title) else "",
             subtitle = if (headerPolicy.showSubtitle) "" else null,
             modifier = Modifier.padding(horizontal = horizontalPadding),
         )
 
-        Row(
+        if (showBrowseModeSwitch) Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
@@ -2341,12 +2364,6 @@ private fun GalleryContent(
             }
         }
 
-        val visibleCount = if (browseMode == StashGalleryBrowseMode.Images) {
-            images.size
-        } else {
-            galleries.size
-        }
-        val totalCount = if (browseMode == StashGalleryBrowseMode.Images) imagePageState.totalCount else pageState.totalCount
         if (visibleCount > 0 || totalCount != null) {
             Text(
                 text = stringResource(
@@ -2362,6 +2379,9 @@ private fun GalleryContent(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+
+        }
         }
 
         when {

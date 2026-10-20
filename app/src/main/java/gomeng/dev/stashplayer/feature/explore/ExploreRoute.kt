@@ -1,6 +1,18 @@
 package gomeng.dev.stashplayer.feature.explore
 
 import android.content.res.Configuration
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import gomeng.dev.stashplayer.core.ui.components.LocalCollapsingChromeVisible
+import gomeng.dev.stashplayer.core.ui.components.ScenePreviewController
+import gomeng.dev.stashplayer.core.ui.components.ScenePreviewSurface
+import gomeng.dev.stashplayer.core.ui.components.rememberScenePreviewController
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -114,6 +126,9 @@ import gomeng.dev.stashplayer.core.ui.discovery.StashVideoFilterGroupRow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import gomeng.dev.stashplayer.R
+import gomeng.dev.stashplayer.core.model.StashSavedFilterMode
+import gomeng.dev.stashplayer.core.model.StashServerSavedFilter
+import gomeng.dev.stashplayer.core.model.withServerSavedFilter
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 
 private val SEARCH_DEBOUNCE_MS = 500L
@@ -138,11 +153,54 @@ internal class ExploreRouteStateViewModel : ViewModel() {
     var openSheet by mutableStateOf<StashDiscoveryOpenSheet>(StashDiscoveryOpenSheet.None)
     var savedFilterName by mutableStateOf("")
     var tagOptionsState by mutableStateOf(StashDiscoveryTagOptionsState())
+    /** Filters saved in the Stash web UI (scenes). */
+    var serverFilters by mutableStateOf<List<StashServerSavedFilter>>(emptyList())
+    var serverFiltersLoadedFor by mutableStateOf<Any?>(null)
+    /** The web UI's default filter is applied once, on a fresh Explore without any filter or search. */
+    var defaultFilterChecked by mutableStateOf(false)
     var lastServerResetLoadKey by mutableStateOf<ExploreRouteResetLoadKey?>(null)
     var lastLocalFavoriteResetLoadKey by mutableStateOf<ExploreRouteResetLoadKey?>(null)
 
     fun clearTransientLoading() {
         if (pageState.isLoading) pageState = pageState.copy(isLoading = false)
+    }
+}
+
+/** The centered card starts its preview after scrolling has rested this long. */
+private const val EXPLORE_AUTO_PREVIEW_DELAY_MS = 350L
+/** Holding a card this long starts its preview (shorter than the system long-press). */
+private const val EXPLORE_HOLD_PREVIEW_MS = 300L
+
+/**
+ * Touch and hold plays [previewUrl] on this card until the finger lifts. Observes on the Initial pass so the
+ * card's own click still works; a lift after the preview started is consumed so it doesn't open the scene.
+ */
+private fun Modifier.holdToPreview(
+    sceneId: String,
+    previewUrl: String?,
+    preview: ScenePreviewController,
+    scope: kotlinx.coroutines.CoroutineScope,
+): Modifier = pointerInput(sceneId, previewUrl) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val start = scope.launch {
+            delay(EXPLORE_HOLD_PREVIEW_MS)
+            preview.play(sceneId, previewUrl)
+        }
+        var previewing = false
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            previewing = previewing || preview.activeSceneId == sceneId
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+            // Scrolling the list cancels the hold.
+            if (!previewing && (change.position - down.position).getDistance() > viewConfiguration.touchSlop) break
+            if (!change.pressed) {
+                if (previewing) change.consume()
+                break
+            }
+        }
+        start.cancel()
+        if (preview.activeSceneId == sceneId) preview.stop()
     }
 }
 
@@ -319,6 +377,32 @@ fun ExploreRoute(
         }
     }
 
+    // Saved filters from the Stash web UI, plus its default filter for a fresh, unfiltered Explore.
+    LaunchedEffect(profile, didApplyPersistedExploreState) {
+        val activeProfile = profile ?: return@LaunchedEffect
+        if (!didApplyPersistedExploreState) return@LaunchedEffect
+        val client = StashGraphQlClient(activeProfile)
+        if (routeState.serverFiltersLoadedFor != activeProfile) {
+            runCatching { client.findServerSavedFilters(StashSavedFilterMode.Scenes) }.onSuccess {
+                routeState.serverFilters = it
+                routeState.serverFiltersLoadedFor = activeProfile
+            }
+        }
+        if (!routeState.defaultFilterChecked) {
+            routeState.defaultFilterChecked = true
+            if (pageState.videoFilter.isEmpty && pageState.query.isBlank()) {
+                runCatching { client.findServerDefaultFilter(StashSavedFilterMode.Scenes) }.getOrNull()
+                    ?.takeIf { it.criteria.isNotEmpty() }
+                    ?.let { defaultFilter ->
+                        applyExploreFilterAction(
+                            applyStashDiscoveryManualFilter(pageState.videoFilter, pageState.videoFilter.withServerSavedFilter(defaultFilter)),
+                            saveRecent = false,
+                        )
+                    }
+            }
+        }
+    }
+
     LaunchedEffect(
         didApplyPersistedExploreState,
         pageState.query,
@@ -459,6 +543,13 @@ fun ExploreRoute(
         },
         onClearSavedFilter = {
             applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.SavedFilter), saveRecent = false)
+        },
+        serverFilters = routeState.serverFilters,
+        onApplyServerFilter = { filter ->
+            applyExploreFilterAction(
+                applyStashDiscoveryManualFilter(pageState.videoFilter, pageState.videoFilter.withServerSavedFilter(filter)),
+                saveRecent = false,
+            )
         },
         searchPerformers = { query -> profile?.let { StashGraphQlClient(it).findPerformers(query = query) }.orEmpty() },
         searchStudios = { query -> profile?.let { StashGraphQlClient(it).findStudios(query = query) }.orEmpty() },
@@ -702,11 +793,18 @@ private fun ExploreContent(
     val totalCount = pageState.totalCount
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val showSupportingChrome = showExploreSupportingChrome(isLandscape)
-    var controlsExpanded by rememberSaveable { mutableStateOf(defaultExploreControlsExpanded(isLandscape)) }
-    val showControls = controlsExpanded
+    // The header collapses while scrolling down (see CollapsingChromeState), so it is always "expanded".
+    val showControls = true
+    val chromeVisible = LocalCollapsingChromeVisible.current
     val visibleResultIds = results.map { it.id }
     var selectionState by remember { mutableStateOf(SceneSelectionState()) }
-    var viewMode by remember { mutableStateOf(StashScenesViewMode.Grid) }
+    val layoutContext = LocalContext.current
+    val layoutRepository = remember(layoutContext) { StashSettingsRepository(layoutContext) }
+    val viewMode by layoutRepository.exploreLayout.collectAsState(initial = StashScenesViewMode.Grid)
+    val preview = rememberScenePreviewController(serverProfile)
+    val holdScope = rememberCoroutineScope()
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val largeThumbnailHeight = ((screenWidthDp - horizontalPadding.value * 2) * 9f / 16f).dp
     var deleteConfirmation by remember { mutableStateOf(SceneBulkDeleteConfirmationState.Hidden) }
     var previousVisibleResultIds by remember { mutableStateOf(visibleResultIds) }
     val scope = rememberCoroutineScope()
@@ -754,6 +852,28 @@ private fun ExploreContent(
         },
     )
 
+    // Large layout: once scrolling settles, the card nearest the middle of the screen plays its preview.
+    LaunchedEffect(viewMode, exploreListState, results) {
+        if (viewMode != StashScenesViewMode.List) {
+            preview.stop()
+            return@LaunchedEffect
+        }
+        snapshotFlow {
+            if (exploreListState.isScrollInProgress) {
+                null
+            } else {
+                val layout = exploreListState.layoutInfo
+                val center = (layout.viewportStartOffset + layout.viewportEndOffset) / 2
+                layout.visibleItemsInfo.minByOrNull { kotlin.math.abs(it.offset + it.size / 2 - center) }?.key as? String
+            }
+        }.collect { centeredId ->
+            if (centeredId == null) return@collect
+            delay(EXPLORE_AUTO_PREVIEW_DELAY_MS)
+            val scene = results.firstOrNull { it.id == centeredId }
+            if (scene != null) preview.play(scene.id, scene.previewUrl) else preview.stop()
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -761,20 +881,8 @@ private fun ExploreContent(
                 .padding(top = StashSpacing.SectionGap),
             verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
         ) {
-        if (showSupportingChrome) Column(
-            modifier = Modifier.padding(horizontal = horizontalPadding),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(stashString(R.string.navigation_explore_label), style = MaterialTheme.typography.headlineLarge)
-        }
-
-        TextButton(
-            onClick = { controlsExpanded = !controlsExpanded },
-            modifier = Modifier.padding(horizontal = horizontalPadding),
-        ) {
-            Text(stashString(if (controlsExpanded) R.string.explore_hide_controls else R.string.explore_show_controls))
-        }
-
+        AnimatedVisibility(visible = chromeVisible, enter = expandVertically(), exit = shrinkVertically()) {
+        Column(verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap)) {
         if (showControls) {
         StashScenesToolbar(
             horizontalPadding = horizontalPadding,
@@ -803,7 +911,9 @@ private fun ExploreContent(
             showFilterShortcuts = false,
             viewMode = viewMode,
             onToggleViewMode = {
-                viewMode = if (viewMode == StashScenesViewMode.Grid) StashScenesViewMode.List else StashScenesViewMode.Grid
+                val next = if (viewMode == StashScenesViewMode.Grid) StashScenesViewMode.List else StashScenesViewMode.Grid
+                preview.stop()
+                holdScope.launch { layoutRepository.setExploreLayout(next) }
             },
             selectionCount = selectionState.selectedCount,
             visibleCount = results.size,
@@ -887,6 +997,8 @@ private fun ExploreContent(
                 }
             }
         }
+        }
+        }
 
         when {
             !isConfigured -> StashEmptyState(
@@ -928,9 +1040,11 @@ private fun ExploreContent(
                         verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
                         horizontalArrangement = Arrangement.spacedBy(gridGap),
                     ) {
-                        items(results, key = { it.id }) { scene ->
+                        items(results, key = { it.id }, contentType = { "scene" }) { scene ->
                             SceneCard(
                                 scene = scene,
+                                // Compact layout: touch and hold plays the preview; selection starts from the toolbar.
+                                modifier = Modifier.holdToPreview(scene.id, scene.previewUrl, preview, holdScope),
                                 thumbnailHeight = thumbnailHeight,
                                 thumbnailModel = rememberStashThumbnailModel(scene.thumbnailUrl, serverProfile),
                                 isLocalFavorite = scene.id in favoriteSceneIds,
@@ -941,7 +1055,12 @@ private fun ExploreContent(
                                 onToggleWatchLater = { onToggleWatchLater(scene) },
                                 onAddToQueue = { onAddToQueue(scene) },
                                 showQuickActions = shouldShowSceneCardQuickActionsInMediaGrid(),
-                                onLongClick = { selectionState = selectionState.selectFromLongPress(scene.id) },
+                                onLongClick = if (selectionState.selectedCount > 0) {
+                                    { selectionState = selectionState.selectFromLongPress(scene.id) }
+                                } else {
+                                    null
+                                },
+                                thumbnailOverlay = { ScenePreviewSurface(preview, scene.id) },
                                 onClick = {
                                     val tapResult = selectionState.handleCardTap(scene.id)
                                     selectionState = tapResult.state
@@ -966,10 +1085,11 @@ private fun ExploreContent(
                         contentPadding = PaddingValues(start = horizontalPadding, end = horizontalPadding, bottom = bottomContentPadding),
                         verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
                     ) {
-                        lazyItems(results, key = { it.id }) { scene ->
+                        lazyItems(results, key = { it.id }, contentType = { "scene" }) { scene ->
                             SceneCard(
                                 scene = scene,
-                                thumbnailHeight = thumbnailHeight,
+                                thumbnailHeight = largeThumbnailHeight,
+                                thumbnailOverlay = { ScenePreviewSurface(preview, scene.id) },
                                 thumbnailModel = rememberStashThumbnailModel(scene.thumbnailUrl, serverProfile),
                                 isLocalFavorite = scene.id in favoriteSceneIds,
                                 isInWatchLater = scene.id in watchLaterSceneIds,

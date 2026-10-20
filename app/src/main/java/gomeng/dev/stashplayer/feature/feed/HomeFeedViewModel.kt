@@ -16,6 +16,9 @@ import gomeng.dev.stashplayer.core.model.HomeFeedFilter
 import gomeng.dev.stashplayer.core.model.HomeFeedItem
 import gomeng.dev.stashplayer.core.model.HomeFeedSettings
 import gomeng.dev.stashplayer.core.model.buildHomeFeed
+import gomeng.dev.stashplayer.core.model.pruneSeenFeedPosts
+import gomeng.dev.stashplayer.core.network.UI_KEY_SEEN_FEED_POSTS
+import gomeng.dev.stashplayer.core.network.seenFeedPosts
 import gomeng.dev.stashplayer.core.network.HomeFeedWindowField
 import gomeng.dev.stashplayer.core.network.StashGraphQlClient
 import gomeng.dev.stashplayer.core.network.StashServerProfile
@@ -24,7 +27,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.Instant
 import java.time.temporal.ChronoUnit
 
@@ -51,10 +56,24 @@ data class FeedGalleryImages(
     val isLoading: Boolean = false,
 )
 
+/** Batch seen-post writes instead of hitting the server for every post scrolled past. */
+private const val SEEN_SAVE_DEBOUNCE_MS = 4_000L
+
 internal class HomeFeedViewModel : ViewModel() {
     /** Photos per gallery post, loaded when the post first scrolls into view. */
     val galleryImages = mutableStateMapOf<String, FeedGalleryImages>()
     var actionError by mutableStateOf<String?>(null)
+
+    /** Post keys that were seen before the last load / refresh; only these move below the divider. */
+    var seenSnapshot by mutableStateOf<Set<String>>(emptySet())
+        private set
+    var showSeenPosts by mutableStateOf(false)
+
+    /** Every seen post (key → its added date), mirrored to the server's UI config. */
+    private val seenPosts = linkedMapOf<String, String>()
+    private var seenLoadedFor: StashServerProfile? = null
+    private var seenDirty = false
+    private var seenSaveJob: Job? = null
 
     var state by mutableStateOf<HomeFeedState>(HomeFeedState.Loading)
         private set
@@ -75,7 +94,11 @@ internal class HomeFeedViewModel : ViewModel() {
     private var profile: StashServerProfile? = null
 
     fun bind(profile: StashServerProfile, newSettings: HomeFeedSettings, force: Boolean = false) {
-        if (profile != this.profile) galleryImages.clear()
+        if (profile != this.profile) {
+            galleryImages.clear()
+            seenPosts.clear()
+            seenLoadedFor = null
+        }
         this.profile = profile
         settings = newSettings
         val key = listOf(profile, newSettings.lookbackDays, filter)
@@ -98,6 +121,13 @@ internal class HomeFeedViewModel : ViewModel() {
             val result = runCatching {
                 coroutineScope {
                     val client = StashGraphQlClient(profile)
+                    if (seenLoadedFor != profile) {
+                        // A failing UI-config read just means nothing counts as seen yet.
+                        runCatching { client.findUiConfig().seenFeedPosts() }.onSuccess { stored ->
+                            stored.forEach { (key, date) -> seenPosts.putIfAbsent(key, date) }
+                            seenLoadedFor = profile
+                        }
+                    }
                     // A scene counts as new when it was added OR released inside the window, like the plugin.
                     val scenes = listOf(
                         async { client.findHomeFeedScenes(HomeFeedWindowField.CreatedAt, sinceTimestamp, criteria) },
@@ -116,6 +146,8 @@ internal class HomeFeedViewModel : ViewModel() {
             }
             result.onSuccess { loaded ->
                 source = loaded
+                seenSnapshot = seenPosts.keys.toSet()
+                showSeenPosts = false
                 state = HomeFeedState.Ready(loaded.toFeed())
             }.onFailure { throwable ->
                 if (source == null) {
@@ -134,6 +166,35 @@ internal class HomeFeedViewModel : ViewModel() {
             is HomeFeedItem.Pack -> item.scenes.map { it.scene }
             is HomeFeedItem.GalleryPost -> emptyList()
         }
+    }
+
+    /** Records a post as seen; written to the server a few seconds later, batched with others. */
+    fun markSeen(key: String, createdAt: String) {
+        if (seenPosts.containsKey(key)) return
+        seenPosts[key] = createdAt.take(10)
+        seenDirty = true
+        seenSaveJob?.cancel()
+        seenSaveJob = viewModelScope.launch {
+            delay(SEEN_SAVE_DEBOUNCE_MS)
+            flushSeen()
+        }
+    }
+
+    /** Writes pending seen posts now (also called when leaving Home). */
+    fun flushSeenNow() {
+        if (!seenDirty) return
+        seenSaveJob?.cancel()
+        seenSaveJob = viewModelScope.launch { flushSeen() }
+    }
+
+    private suspend fun flushSeen() {
+        val activeProfile = profile ?: return
+        if (!seenDirty) return
+        val pruned = pruneSeenFeedPosts(seenPosts, LocalDate.now())
+        seenPosts.keys.retainAll(pruned.keys)
+        seenDirty = false
+        runCatching { StashGraphQlClient(activeProfile).setUiSetting(UI_KEY_SEEN_FEED_POSTS, pruned) }
+            .onFailure { seenDirty = true }
     }
 
     fun ensureGalleryImages(galleryId: String) {

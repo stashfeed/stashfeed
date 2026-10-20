@@ -585,8 +585,8 @@
     <string name="auto_kr_0080" formatted="false">Play selection</string>
     <string name="auto_kr_0081" formatted="false">Delete</string>
     <string name="auto_kr_0082" formatted="false">More</string>
-    <string name="auto_kr_0083" formatted="false">Grid</string>
-    <string name="auto_kr_0084" formatted="false">List</string>
+    <string name="auto_kr_0083" formatted="false">Compact</string>
+    <string name="auto_kr_0084" formatted="false">Large</string>
     <string name="auto_kr_0085" formatted="false">Date, duration, status</string>
     <string name="auto_kr_0086" formatted="false">Local and saved filters</string>
     <string name="auto_kr_0087" formatted="false">Random and shuffle</string>

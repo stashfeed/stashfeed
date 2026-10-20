@@ -147,6 +147,7 @@ data class StashVideoFilterState(
         }
         savedFilter?.let { filter ->
             add("saved=${encodeStashVideoFilterField(filter.id)}:${encodeStashVideoFilterField(filter.name)}")
+            filter.criteria?.let { criteria -> add("savedCriteria=${encodeStashVideoFilterField(org.json.JSONObject(criteria).toString())}") }
         }
     }.joinToString(";")
 }

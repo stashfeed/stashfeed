@@ -28,6 +28,8 @@ data class SceneCardModel(
     val createdAt: String? = null,
     val oCounter: Int? = null,
     val rating100: Int? = null,
+    /** Short muted preview clip (`paths.preview`), played on Explore cards. */
+    val previewUrl: String? = null,
 ) {
     val subtitle: String
         get() = buildList {

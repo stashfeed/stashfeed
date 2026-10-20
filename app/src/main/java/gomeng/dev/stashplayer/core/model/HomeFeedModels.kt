@@ -42,6 +42,8 @@ data class HomeFeedSettings(
     val allowedGenders: Set<StashPerformerGender> = StashPerformerGender.entries.toSet(),
     val ignoredGalleryFolders: List<String> = HOME_FEED_DEFAULT_IGNORED_GALLERY_FOLDERS,
     val hiddenKinds: Set<HomeFeedKind> = setOf(HomeFeedKind.Unidentified),
+    /** Move posts seen before the last refresh below a "You're all caught up" divider. */
+    val hideSeen: Boolean = true,
 ) {
     fun isAllowed(gender: StashPerformerGender?): Boolean = gender == null || gender in allowedGenders
 }
@@ -51,13 +53,26 @@ data class HomeFeedFilter(
     val performers: List<StashSelectedEntity> = emptyList(),
     val tags: List<StashSelectedEntity> = emptyList(),
     val studios: List<StashSelectedEntity> = emptyList(),
+    /** True: the list is "all except these" (Stash EXCLUDES), which also covers entries added later. */
+    val performersExcluded: Boolean = false,
+    val tagsExcluded: Boolean = false,
+    val studiosExcluded: Boolean = false,
 ) {
     val activeCount: Int get() = performers.size + tags.size + studios.size
 
     fun toGraphQlCriteria(): Map<String, Any?> = buildMap {
-        if (performers.isNotEmpty()) put("performers", mapOf("value" to performers.map { it.id }, "modifier" to "INCLUDES"))
-        if (tags.isNotEmpty()) put("tags", mapOf("value" to tags.map { it.id }, "modifier" to "INCLUDES", "depth" to 0))
-        if (studios.isNotEmpty()) put("studios", mapOf("value" to studios.map { it.id }, "modifier" to "INCLUDES", "depth" to 0))
+        criterion(performers, performersExcluded, hierarchical = false)?.let { put("performers", it) }
+        criterion(tags, tagsExcluded, hierarchical = true)?.let { put("tags", it) }
+        criterion(studios, studiosExcluded, hierarchical = true)?.let { put("studios", it) }
+    }
+
+    private fun criterion(entities: List<StashSelectedEntity>, excluded: Boolean, hierarchical: Boolean): Map<String, Any?>? {
+        if (entities.isEmpty()) return null
+        return buildMap {
+            put("value", entities.map { it.id })
+            put("modifier", if (excluded) "EXCLUDES" else "INCLUDES")
+            if (hierarchical) put("depth", 0)
+        }
     }
 }
 
@@ -224,4 +239,28 @@ internal fun String.toEpochMillisOrNull(): Long? = try {
     OffsetDateTime.parse(this).toInstant().toEpochMilli()
 } catch (_: DateTimeParseException) {
     runCatching { Instant.parse(this).toEpochMilli() }.getOrNull()
+}
+
+/** Seen posts are kept this long (the longest feed window), then dropped so the stored list stays small. */
+const val SEEN_FEED_POSTS_KEEP_DAYS = 90L
+
+/** A post counts as seen after being at least half on screen for this long, like Instagram. */
+const val SEEN_FEED_POST_DWELL_MS = 1_000L
+const val SEEN_FEED_POST_MIN_VISIBLE_FRACTION = 0.5f
+
+/** Drops seen entries whose post was added more than [keepDays] before [today] (`yyyy-MM-dd` strings). */
+fun pruneSeenFeedPosts(seen: Map<String, String>, today: java.time.LocalDate, keepDays: Long = SEEN_FEED_POSTS_KEEP_DAYS): Map<String, String> {
+    val cutoff = today.minusDays(keepDays).toString()
+    return seen.filterValues { addedDate -> addedDate >= cutoff }
+}
+
+data class HomeFeedSections(
+    val unseen: List<HomeFeedItem>,
+    val seen: List<HomeFeedItem>,
+)
+
+/** Splits the feed into posts not yet seen (in feed order) and the ones seen before the last refresh. */
+fun HomeFeed.splitBySeen(seenKeys: Set<String>): HomeFeedSections {
+    val (seen, unseen) = items.partition { it.key in seenKeys }
+    return HomeFeedSections(unseen = unseen, seen = seen)
 }

@@ -15,6 +15,7 @@ import gomeng.dev.stashplayer.core.discovery.toFilterSheetVisibility
 import gomeng.dev.stashplayer.core.local.LocalSavedVideoFilter
 import gomeng.dev.stashplayer.core.local.appliedFilterState
 import gomeng.dev.stashplayer.core.model.StashSelectedEntity
+import gomeng.dev.stashplayer.core.model.StashServerSavedFilter
 import gomeng.dev.stashplayer.core.model.StashSelectedTag
 import gomeng.dev.stashplayer.core.model.StashVideoFilterState
 import gomeng.dev.stashplayer.core.ui.components.StashDateDurationPlaybackFilterSheet
@@ -55,6 +56,8 @@ fun StashDiscoveryFilterSheets(
     onClearSavedFilter: () -> Unit,
     searchPerformers: suspend (String) -> List<StashSelectedEntity> = { emptyList() },
     searchStudios: suspend (String) -> List<StashSelectedEntity> = { emptyList() },
+    serverFilters: List<StashServerSavedFilter> = emptyList(),
+    onApplyServerFilter: (StashServerSavedFilter) -> Unit = {},
 ) {
     val visibility = openSheet.toFilterSheetVisibility()
 
@@ -103,6 +106,8 @@ fun StashDiscoveryFilterSheets(
             onQuickSaveCurrentFilter = onQuickSaveCurrentFilter,
             onDeleteSavedFilter = onDeleteSavedFilter,
             onDismiss = onDismiss,
+            serverFilters = serverFilters,
+            onApplyServerFilter = onApplyServerFilter,
         )
     }
 

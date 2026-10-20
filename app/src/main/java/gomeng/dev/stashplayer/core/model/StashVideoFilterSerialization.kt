@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.core.model
 
+import gomeng.dev.stashplayer.core.network.parseJsonObjectToMap
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -56,7 +57,12 @@ fun deserializeStashVideoFilterState(serialized: String): StashVideoFilterState 
         ),
         randomShuffle = fields["random"] == "true",
         randomShuffleSeed = fields["randomSeed"]?.toIntOrNull()?.let(::normalizeStashRandomSortSeed),
-        savedFilter = fields["saved"].parseSavedFilter(),
+        savedFilter = fields["saved"].parseSavedFilter()?.let { ref ->
+            val criteria = fields["savedCriteria"]?.let(::decodeOrNull)?.let { json ->
+                runCatching { parseJsonObjectToMap(json) }.getOrNull()
+            }
+            ref.copy(criteria = criteria)
+        },
     )
 }
 

@@ -29,6 +29,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +61,11 @@ data class StashEntityFilterTab(
     val searchLabel: String,
     val selected: List<StashSelectedEntity>,
     val search: suspend (String) -> List<StashSelectedEntity>,
+    /**
+     * Whether [selected] lists entries to leave OUT ("all except these"). Null hides the include/exclude
+     * switch and "select all" for this tab.
+     */
+    val excluded: Boolean? = null,
 )
 
 /** Picks performers and studios for a video filter (Explore). */
@@ -104,10 +113,13 @@ fun StashMultiEntityFilterSheet(
     onDismiss: () -> Unit,
     extraContent: (@Composable ColumnScope.() -> Unit)? = null,
     onReset: () -> Unit = {},
+    /** Per tab: true = the tab's selection is an exclusion list. Called right before [onApply]. */
+    onApplyExcluded: (List<Boolean>) -> Unit = {},
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tab = tabs[selectedTab]
     var drafts by remember(tabs.map { it.selected }) { mutableStateOf(tabs.map { it.selected }) }
+    var excludedModes by remember(tabs.map { it.excluded }) { mutableStateOf(tabs.map { it.excluded == true }) }
     var query by remember(selectedTab) { mutableStateOf("") }
     var options by remember(selectedTab) { mutableStateOf<List<StashSelectedEntity>>(emptyList()) }
     var isLoading by remember(selectedTab) { mutableStateOf(false) }
@@ -125,11 +137,18 @@ fun StashMultiEntityFilterSheet(
     }
 
     val draft = drafts[selectedTab]
+    val excluding = excludedModes[selectedTab]
+    // In exclude mode the draft holds the entries left out, so a chip shows "checked" when it is NOT in it.
     fun toggle(entity: StashSelectedEntity) {
         val updated = if (draft.any { it.id == entity.id }) draft.filterNot { it.id == entity.id } else draft + entity
         drafts = drafts.toMutableList().also { it[selectedTab] = updated }
     }
-    val selectedIds = draft.map { it.id }.toSet()
+    fun setMode(exclude: Boolean, clear: Boolean) {
+        excludedModes = excludedModes.toMutableList().also { it[selectedTab] = exclude }
+        if (clear) drafts = drafts.toMutableList().also { it[selectedTab] = emptyList() }
+    }
+    val draftIds = draft.map { it.id }.toSet()
+    fun isChecked(entity: StashSelectedEntity) = (entity.id in draftIds) != excluding
     val orderedOptions = (draft + options).distinctBy { it.id }
     val totalSelected = drafts.sumOf { it.size }
 
@@ -171,6 +190,30 @@ fun StashMultiEntityFilterSheet(
                     )
                 }
             }
+            if (tab.excluded != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap)) {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.weight(1f)) {
+                        SegmentedButton(
+                            selected = !excluding,
+                            onClick = { if (excluding) setMode(exclude = false, clear = true) },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        ) { Text(stashString(R.string.entity_filter_mode_only), maxLines = 1) }
+                        SegmentedButton(
+                            selected = excluding,
+                            onClick = { if (!excluding) setMode(exclude = true, clear = true) },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        ) { Text(stashString(R.string.entity_filter_mode_except), maxLines = 1) }
+                    }
+                    // "Select all" = everything, then tapping entries leaves them out.
+                    TextButton(onClick = { setMode(exclude = !(excluding && draft.isEmpty()), clear = true) }) {
+                        Text(
+                            stashString(
+                                if (excluding && draft.isEmpty()) R.string.entity_filter_select_none else R.string.entity_filter_select_all,
+                            ),
+                        )
+                    }
+                }
+            }
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
@@ -178,6 +221,17 @@ fun StashMultiEntityFilterSheet(
                 singleLine = true,
                 label = { Text(tab.searchLabel) },
             )
+            if (excluding) {
+                Text(
+                    text = if (draft.isEmpty()) {
+                        stashString(R.string.entity_filter_all_selected)
+                    } else {
+                        stashString(R.string.entity_filter_all_except, draft.size)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             if (draft.isNotEmpty()) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap),
@@ -185,9 +239,15 @@ fun StashMultiEntityFilterSheet(
                 ) {
                     draft.forEach { entity ->
                         StashVisibilityFilterChip(
-                            selected = true,
+                            selected = !excluding,
                             onClick = { toggle(entity) },
-                            label = { Text("${entity.name} ×", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                            label = {
+                                Text(
+                                    if (excluding) "− ${entity.name}" else "${entity.name} ×",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
                         )
                     }
                 }
@@ -215,7 +275,7 @@ fun StashMultiEntityFilterSheet(
                     ) {
                         items(orderedOptions, key = { it.id }) { entity ->
                             StashVisibilityFilterChip(
-                                selected = entity.id in selectedIds,
+                                selected = isChecked(entity),
                                 onClick = { toggle(entity) },
                                 modifier = Modifier.fillMaxWidth(),
                                 label = { Text(entity.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -241,6 +301,7 @@ fun StashMultiEntityFilterSheet(
                 OutlinedButton(
                     onClick = {
                         drafts = tabs.map { emptyList() }
+                        excludedModes = tabs.map { false }
                         onReset()
                     },
                 ) {
@@ -248,6 +309,7 @@ fun StashMultiEntityFilterSheet(
                 }
                 Button(
                     onClick = {
+                        onApplyExcluded(excludedModes)
                         onApply(drafts)
                         onDismiss()
                     },

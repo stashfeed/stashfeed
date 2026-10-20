@@ -16,6 +16,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -87,6 +88,16 @@ internal fun HomeFeedSettingsSheet(
                 }
             }
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    SettingsSectionTitle(stashString(R.string.home_feed_settings_hide_seen), stashString(R.string.home_feed_settings_hide_seen_hint))
+                }
+                Switch(checked = draft.hideSeen, onCheckedChange = { draft = draft.copy(hideSeen = it) })
+            }
+
             SettingsSectionTitle(stashString(R.string.home_feed_settings_genders), stashString(R.string.home_feed_settings_genders_hint))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap)) {
                 StashPerformerGender.entries.forEach { gender ->
@@ -140,6 +151,7 @@ internal fun HomeFeedFilterSheet(
     onDismiss: () -> Unit,
 ) {
     val client = remember(profile) { profile?.let(::StashGraphQlClient) }
+    var excludedModes by remember { mutableStateOf(listOf(false, false, false)) }
     StashMultiEntityFilterSheet(
         title = stashString(R.string.home_feed_filter_title),
         hint = stashString(R.string.home_feed_filter_hint),
@@ -149,21 +161,36 @@ internal fun HomeFeedFilterSheet(
                 searchLabel = stashString(R.string.people_filter_search_performers),
                 selected = filter.performers,
                 search = { query -> client?.findPerformers(query = query).orEmpty() },
+                excluded = filter.performersExcluded,
             ),
             StashEntityFilterTab(
                 label = stashString(R.string.for_you_filter_tab_tags),
                 searchLabel = stashString(R.string.for_you_filter_search_tags),
                 selected = filter.tags,
                 search = { query -> client?.findTags(query = query).orEmpty().map { StashSelectedEntity(it.id, it.name) } },
+                excluded = filter.tagsExcluded,
             ),
             StashEntityFilterTab(
                 label = stashString(R.string.people_filter_tab_studios),
                 searchLabel = stashString(R.string.people_filter_search_studios),
                 selected = filter.studios,
                 search = { query -> client?.findStudios(query = query).orEmpty() },
+                excluded = filter.studiosExcluded,
             ),
         ),
-        onApply = { selections -> onApply(HomeFeedFilter(selections[0], selections[1], selections[2])) },
+        onApplyExcluded = { modes -> excludedModes = modes },
+        onApply = { selections ->
+            onApply(
+                HomeFeedFilter(
+                    performers = selections[0],
+                    tags = selections[1],
+                    studios = selections[2],
+                    performersExcluded = excludedModes.getOrElse(0) { false },
+                    tagsExcluded = excludedModes.getOrElse(1) { false },
+                    studiosExcluded = excludedModes.getOrElse(2) { false },
+                ),
+            )
+        },
         onDismiss = onDismiss,
     )
 }

@@ -5,6 +5,8 @@ import gomeng.dev.stashplayer.core.ui.i18n.stashString
 data class StashSavedFilterRef(
     val id: String,
     val name: String,
+    /** GraphQL criteria of a filter saved in the Stash web UI; null for the app's own saved filters. */
+    val criteria: Map<String, Any?>? = null,
 )
 
 fun StashVideoFilterState.toSavedFilterPayload(): StashVideoFilterState = copy(

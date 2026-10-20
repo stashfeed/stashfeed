@@ -5,6 +5,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -73,6 +74,8 @@ fun SceneCard(
     onAddToQueue: (() -> Unit)? = null,
     showQuickActions: Boolean = true,
     onLongClick: (() -> Unit)? = null,
+    /** Drawn over the thumbnail (e.g. a playing preview), under the badges. */
+    thumbnailOverlay: (@Composable BoxScope.() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val hapticFeedback = LocalHapticFeedback.current
@@ -108,6 +111,7 @@ fun SceneCard(
                         contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     )
                 }
+                thumbnailOverlay?.invoke(this)
                 StashGradientScrim(modifier = Modifier.matchParentSize())
                 if (isSelected) {
                     Badge(modifier = Modifier.align(Alignment.TopStart).padding(12.dp)) {
