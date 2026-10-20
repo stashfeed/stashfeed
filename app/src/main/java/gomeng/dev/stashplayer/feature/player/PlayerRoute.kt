@@ -470,6 +470,8 @@ private fun RealPlayerRoute(
         preference = streamPreference,
     )
     var reprepareStartPositionMs by remember(stream) { mutableStateOf<Long?>(null) }
+    /** Relative seeks requested before the player had a video loaded; added to the start position. */
+    var pendingStartOffsetMs by remember(stream) { mutableLongStateOf(0L) }
     var seekPreviewState by remember(stream) { mutableStateOf(PlayerSeekPreviewControllerState()) }
     val activeCandidate = resolvedCandidates[
         PlayerStreamSelectionController.coerceCandidateIndex(activeCandidateIndex, resolvedCandidates.size),
@@ -1061,10 +1063,13 @@ private fun RealPlayerRoute(
         playbackStatus = PlayerPlaybackUiStatus.Loading
         playbackErrorText = null
         controller.clearLastError()
+        // ±10 s taps made before the video was loaded (e.g. during the resume prompt) apply to where it starts.
+        val queuedOffsetMs = pendingStartOffsetMs
+        pendingStartOffsetMs = 0L
         controller.prepare(
             uri = activeCandidate.uri,
             title = stream.title,
-            startPositionMs = startPositionMs,
+            startPositionMs = (startPositionMs + queuedOffsetMs).coerceAtLeast(0L),
             playWhenReady = true,
             requestHeaders = activeCandidate.requestHeaders,
             captionTracks = stream.captionTracks,
@@ -1334,7 +1339,13 @@ private fun RealPlayerRoute(
         }
         positionMs = update.displayPositionMs
     }
-    val seekBy: (Long) -> Unit = { deltaMs ->
+    val seekBy: (Long) -> Unit = seekBy@{ deltaMs ->
+        if (controller.player.currentMediaItem == null) {
+            // Nothing loaded yet: a seek now would be lost, so keep it for the start position.
+            markPlayerInteraction()
+            pendingStartOffsetMs += deltaMs
+            return@seekBy
+        }
         val basePositionMs = controller.player.currentPosition.coerceAtLeast(0L)
         seekTo(basePositionMs + deltaMs)
     }
@@ -1352,7 +1363,11 @@ private fun RealPlayerRoute(
             nowMs = System.currentTimeMillis(),
         )
         seekPreviewState = update.state
-        update.seekRequest?.let { request ->
+        // The video jumps once, on release; while dragging, the bubble shows the time (and the sprite frame when
+        // Stash generated sprites). Seeking the player on every drag step snapped it back to keyframes and
+        // restarted loading each time, which made scrubbing jumpy and slow.
+        val warmSeek: PlayerSeekRequest? = null
+        warmSeek?.let { request ->
             if (update.holdPlayback) {
                 controller.holdPlaybackForSeekPreview()
             }
