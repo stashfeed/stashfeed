@@ -4,6 +4,7 @@ import gomeng.dev.stashplayer.core.model.StashSavedFilterMode
 import gomeng.dev.stashplayer.core.model.StashServerSavedFilter
 import gomeng.dev.stashplayer.core.model.withServerSavedFilter
 import gomeng.dev.stashplayer.core.ui.components.StashBrowseHeaderScaffold
+import gomeng.dev.stashplayer.core.ui.designsystem.StashMediaGridSkeleton
 import gomeng.dev.stashplayer.core.ui.components.StashBrowseLayout
 import gomeng.dev.stashplayer.core.ui.components.StashHeaderChip
 import gomeng.dev.stashplayer.core.ui.components.StashSelectionPill
@@ -2481,12 +2482,15 @@ private fun GalleryContent(
                 onPrimaryAction = onOpenSettings,
             )
 
-            isImageMode && imagePageState.isLoading && visibleCount == 0 -> Box(
-                modifier = Modifier.fillMaxSize().padding(top = top),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
-            }
+            isImageMode && imagePageState.isLoading && visibleCount == 0 -> StashMediaGridSkeleton(
+                columns = if (isLarge) 1 else if (isFoldLikeLayout) 4 else 3,
+                mediaAspectRatio = if (isLarge) 4f / 5f else 1f,
+                horizontalPadding = if (isLarge) horizontalPadding else 2.dp,
+                gap = if (isLarge) StashSpacing.CardGap else 3.dp,
+                rows = 6,
+                textLines = if (isLarge) 1 else 0,
+                modifier = Modifier.padding(top = top + StashSpacing.CardGap),
+            )
 
             isImageMode && imagePageState.error != null && visibleCount == 0 -> StashErrorState(
                 state = StashErrorStateModel(
@@ -2550,12 +2554,13 @@ private fun GalleryContent(
                 }
             }
 
-            pageState.isLoading && galleries.isEmpty() -> Box(
-                modifier = Modifier.fillMaxSize().padding(top = top),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
-            }
+            pageState.isLoading && galleries.isEmpty() -> StashMediaGridSkeleton(
+                columns = if (isLarge) 1 else columns,
+                mediaAspectRatio = 4f / 3f,
+                horizontalPadding = horizontalPadding,
+                rows = 4,
+                modifier = Modifier.padding(top = top + StashSpacing.CardGap),
+            )
 
             pageState.error != null && galleries.isEmpty() -> StashErrorState(
                 state = StashErrorStateModel(

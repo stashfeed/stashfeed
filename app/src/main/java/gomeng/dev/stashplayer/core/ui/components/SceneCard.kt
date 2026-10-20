@@ -53,6 +53,12 @@ import gomeng.dev.stashplayer.core.ui.designsystem.buildStashTagChipOverflowStat
 import gomeng.dev.stashplayer.core.ui.designsystem.stashSurfaceTreatment
 import gomeng.dev.stashplayer.core.ui.designsystem.toStashSurfaceThemeColor
 import gomeng.dev.stashplayer.core.ui.designsystem.stashThumbnailClip
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import coil.compose.AsyncImage
 import gomeng.dev.stashplayer.R
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
@@ -86,11 +92,18 @@ fun SceneCard(
         }
     }
 
+    // Where the thumbnail sits, so the player can grow out of it when the card opens.
+    val flights = LocalStashThumbnailFlights.current
+    // A plain holder, not state: placement changes on every scroll frame and must not recompose the card.
+    val thumbnailAnchor = remember { arrayOfNulls<LayoutCoordinates>(1) }
     StashMediaCard(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = onClick,
+                onClick = {
+                    flights?.record(scene.id, thumbnailAnchor[0], thumbnailModel)
+                    onClick()
+                },
                 onLongClick = sceneCardLongClick,
             ),
         selected = isSelected,
@@ -99,6 +112,7 @@ fun SceneCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .onPlaced { thumbnailAnchor[0] = it }
                     .height(thumbnailHeight)
                     .stashThumbnailClip()
                     .background(MaterialTheme.colorScheme.surfaceVariant),

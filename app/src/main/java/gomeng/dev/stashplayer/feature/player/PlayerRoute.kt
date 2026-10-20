@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -267,6 +268,13 @@ fun PlayerRoute(
     onOpenSettings: () -> Unit = {},
     onExitPlayer: () -> Unit = {},
     onPlaylistDrawerOpen: suspend (String, Int) -> Unit = { _, _ -> },
+    /** Shrunk into the mini player bar: playback goes on, only the bar is drawn. */
+    minimized: Boolean = false,
+    onExpand: () -> Unit = {},
+    onClosePlayer: () -> Unit = {},
+    miniPlayerBottomPadding: Dp = 0.dp,
+    /** Each change pauses playback (e.g. when a reel starts while the mini player runs). */
+    pauseSignal: Int = 0,
 ) {
     val context = LocalContext.current
     val settingsRepository = remember(context) { StashSettingsRepository(context) }
@@ -346,6 +354,8 @@ fun PlayerRoute(
     }
 
     when {
+        // Minimised before the stream resolved: nothing to show yet, and no full-screen message over the app.
+        minimized && (loadError != null || stream == null) -> Unit
         loadError != null -> PlayerActionMessage(
             message = stashString(R.string.auto_kr_0471, loadError),
             primaryActionLabel = stashString(R.string.auto_kr_0031),
@@ -363,7 +373,7 @@ fun PlayerRoute(
             playbackEndAction = playbackEndAction,
             fastPlaybackHoldSpeed = fastPlaybackHoldSpeed,
             backgroundPlaybackEnabled = backgroundPlaybackEnabled,
-            pictureInPictureEnabled = pictureInPictureEnabled,
+            pictureInPictureEnabled = pictureInPictureEnabled && !minimized,
             playbackOrientationMode = playbackOrientationMode,
             playerSideGestureLayout = playerSideGestureLayout,
             subtitleLanguage = subtitleLanguage,
@@ -384,6 +394,11 @@ fun PlayerRoute(
             onExitPlayer = onExitPlayer,
             onRefreshStream = { streamLoadRetryKey += 1L },
             onPlaylistDrawerOpen = onPlaylistDrawerOpen,
+            minimized = minimized,
+            onExpand = onExpand,
+            onClosePlayer = onClosePlayer,
+            miniPlayerBottomPadding = miniPlayerBottomPadding,
+            pauseSignal = pauseSignal,
         )
     }
 }
@@ -419,6 +434,11 @@ private fun RealPlayerRoute(
     onExitPlayer: () -> Unit,
     onRefreshStream: () -> Unit,
     onPlaylistDrawerOpen: suspend (String, Int) -> Unit,
+    minimized: Boolean,
+    onExpand: () -> Unit,
+    onClosePlayer: () -> Unit,
+    miniPlayerBottomPadding: Dp,
+    pauseSignal: Int,
 ) {
     val context = LocalContext.current
     val settingsRepository = remember(context) { StashSettingsRepository(context) }
@@ -786,7 +806,7 @@ private fun RealPlayerRoute(
     }
     var resumePromptVisible by remember(stream) { mutableStateOf(shouldShowResumePrompt) }
 
-    BackHandler {
+    BackHandler(enabled = !minimized) {
         if (shouldExitPlayerFromFullscreenBack(fullscreenPlayerActive, isLandscape)) {
             onExitPlayer()
             return@BackHandler
@@ -795,7 +815,8 @@ private fun RealPlayerRoute(
             PlayerTransportController.resolveBackAction(
                 playlistDrawerOpen = false,
                 infoDrawerExpanded = infoDrawerState == PlayerInfoDrawerState.Expanded,
-                controlsVisible = controlsVisible && !locked,
+                // On the watch page back goes straight to the mini player; only fullscreen hides controls first.
+                controlsVisible = controlsVisible && !locked && fullscreenPlayerActive,
             )
         ) {
             PlayerBackAction.DismissPlaybackOptions -> Unit
@@ -813,7 +834,7 @@ private fun RealPlayerRoute(
     }
     PlayerSystemBarsEffect(
         activity = activity,
-        hideSystemBars = presentationDragUpdate == null &&
+        hideSystemBars = !minimized && presentationDragUpdate == null &&
             (presentationMotionState.hideSystemBars ||
                 (fullscreenPlayerActive && shouldHidePlayerSystemBars(controlsVisible))),
     )
@@ -1980,6 +2001,24 @@ private fun RealPlayerRoute(
             playerGesturesSuspendedByModalSurface = suspended
         },
     )
+
+    LaunchedEffect(pauseSignal) {
+        if (pauseSignal != 0) controller.pause()
+    }
+    if (minimized) {
+        MiniPlayerBar(
+            controller = controller,
+            title = stream.title,
+            subtitle = stream.studioName,
+            isPlaying = isPlaying,
+            positionMs = positionMs,
+            durationMs = durationMs,
+            bottomPadding = miniPlayerBottomPadding,
+            onExpand = onExpand,
+            onClose = onClosePlayer,
+        )
+        return
+    }
 
     Box(
         modifier = Modifier

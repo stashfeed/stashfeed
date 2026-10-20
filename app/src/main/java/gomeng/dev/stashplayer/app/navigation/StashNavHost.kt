@@ -100,7 +100,36 @@ import gomeng.dev.stashplayer.core.network.shouldRefreshPasswordSessionOnStartup
 import gomeng.dev.stashplayer.core.player.PlaybackOrientationMode
 import gomeng.dev.stashplayer.core.ui.theme.LocalStashStyleTokens
 import gomeng.dev.stashplayer.core.ui.components.LocalStashBrowseTabs
+import gomeng.dev.stashplayer.core.ui.components.LocalStashAvatarTarget
+import gomeng.dev.stashplayer.core.ui.components.StashAvatarTarget
+import gomeng.dev.stashplayer.core.ui.components.LocalStashPlayerExpanded
 import gomeng.dev.stashplayer.core.ui.designsystem.StashSegmentedTabs
+import gomeng.dev.stashplayer.core.ui.designsystem.stashSpring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import gomeng.dev.stashplayer.core.ui.components.StashThumbnailFlightOverlay
+import gomeng.dev.stashplayer.core.ui.components.StashThumbnailFlightRegistry
+import gomeng.dev.stashplayer.core.ui.components.StashThumbnailFlight
+import gomeng.dev.stashplayer.core.ui.components.LocalStashThumbnailFlights
+import gomeng.dev.stashplayer.core.ui.components.LocalStashNavAnimatedScope
+import gomeng.dev.stashplayer.core.ui.components.LocalStashSharedTransitionScope
+import kotlinx.coroutines.delay
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.key
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import gomeng.dev.stashplayer.core.ui.designsystem.StashSpace
 import gomeng.dev.stashplayer.core.model.StashGalleryBrowseMode
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScale
@@ -126,6 +155,14 @@ import gomeng.dev.stashplayer.feature.settings.SettingsRoute
 import gomeng.dev.stashplayer.feature.settings.SettingsSection
 import gomeng.dev.stashplayer.feature.setup.ServerSetupRoute
 import kotlinx.coroutines.flow.first
+
+/** Height of the bottom navigation bar the mini player floats above (without the system inset). */
+private val MiniPlayerAboveNavigationBar = 80.dp
+
+private fun isTabSwitch(from: String?, to: String?): Boolean {
+    val tabs = TopLevelDestination.entries.map { it.route }
+    return from in tabs && to in tabs
+}
 
 private enum class TopLevelDestination(
     val route: String,
@@ -212,6 +249,7 @@ private fun stashNavigationRailItemColors(): NavigationRailItemColors {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun StashNavHost(
     isFoldLikeLayout: Boolean,
@@ -229,7 +267,8 @@ fun StashNavHost(
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     val updateChecker = remember { AppUpdateChecker() }
-    val topLevelDestinations = TopLevelDestination.entries
+    // Library and settings live behind the avatar in the top bars, so the bar keeps four tabs.
+    val topLevelDestinations = TopLevelDestination.entries.filter { it != TopLevelDestination.Library }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
@@ -244,14 +283,27 @@ fun StashNavHost(
     var updateChangelogNotice by remember { mutableStateOf<AppUpdateNotice?>(null) }
     var activeGalleryPhotoViewer by remember { mutableStateOf<ActiveGalleryPhotoViewer?>(null) }
     var activeFeedLightbox by remember { mutableStateOf<FeedLightboxRequest?>(null) }
+    /** The scene in the player layer above the navigation; null when no player is open. */
+    var activePlayerSceneId by rememberSaveable { mutableStateOf<String?>(null) }
+    var playerMinimized by rememberSaveable { mutableStateOf(false) }
+    var playerPauseSignal by remember { mutableIntStateOf(0) }
+    val playerExpanded = activePlayerSceneId != null && !playerMinimized
+    val thumbnailFlights = remember { StashThumbnailFlightRegistry() }
+    var activeFlight by remember { mutableStateOf<StashThumbnailFlight?>(null) }
+    // Chrome (bars, orientation, UI scale) behaves as before: as if the player were the current screen.
+    val chromeRoute = if (playerExpanded) PlayerRoutePattern else currentRoute
+    // The For You reel has its own sound; a running mini player pauses when you open it.
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == TopLevelDestination.ForYou.route && activePlayerSceneId != null && playerMinimized) playerPauseSignal += 1
+    }
     val navigationChromePolicy = stashNavigationChromeVisualPolicy()
-    val activeUiScale = if (isPlayerRoute(currentRoute)) StashUiScale.Default else uiScale
+    val activeUiScale = if (isPlayerRoute(chromeRoute)) StashUiScale.Default else uiScale
     val activity = remember(context) { context.findActivity() }
     AppOrientationEffect(
         activity = activity,
         request = resolveAppOrientationRequest(
             isFoldLikeLayout = isFoldLikeLayout,
-            route = currentRoute,
+            route = chromeRoute,
             playerPresentationMode = playerPresentationMode,
             playbackOrientationMode = playbackOrientationMode,
         ),
@@ -325,6 +377,12 @@ fun StashNavHost(
             }
     }
 
+    fun showPlayer(sceneId: String) {
+        activeFlight = thumbnailFlights.take(sceneId)
+        activePlayerSceneId = sceneId
+        playerMinimized = false
+    }
+
     fun openPlaybackQueueScene(
         sceneId: String,
         scenes: List<SceneCardModel>,
@@ -344,14 +402,14 @@ fun StashNavHost(
         }
         updatePlaybackQueue(nextQueue)
         val presentation = resolvePlayerPresentationLaunchStateForOpenedScene(
-            openedFromActivePlayer = isPlayerRoute(currentRoute),
+            openedFromActivePlayer = playerExpanded,
             currentMode = playerPresentationMode,
             currentLandscapeAutoFullscreen = playerLandscapeAutoFullscreen,
         )
         playerPresentationMode = presentation.mode
         playerLandscapeAutoFullscreen = presentation.landscapeAutoFullscreen
         playbackQueueContinuation = continuation
-        navController.navigate(playerRouteForScene(sceneId))
+        showPlayer(sceneId)
     }
 
     suspend fun ensurePlaylistTrailingItems(sceneId: String, minimumTrailingCount: Int) {
@@ -432,24 +490,28 @@ fun StashNavHost(
         )
         playerPresentationMode = presentation.mode
         playerLandscapeAutoFullscreen = presentation.landscapeAutoFullscreen
-        navController.navigate(playerRouteForScene(sceneId)) {
-            popUpTo("player/{sceneId}") { inclusive = true }
-            launchSingleTop = true
-        }
+        activePlayerSceneId = sceneId
     }
 
+    /** Leaving the player shrinks it into the mini player; the × there closes it. */
     fun exitPlayer() {
-        if (!navController.popBackStack()) {
-            navController.navigate(TopLevelDestination.Home.route) {
-                popUpTo(navController.graph.startDestinationId) {
-                    inclusive = true
-                }
-                launchSingleTop = true
-            }
-        }
+        playerMinimized = true
+    }
+
+    fun closePlayer() {
+        activePlayerSceneId = null
+        playerMinimized = false
     }
 
     StashUiScaleProvider(uiScale = activeUiScale) {
+    val avatarTarget = remember(runtimeProfile?.name, availableUpdateNotice) {
+        StashAvatarTarget(
+            initial = runtimeProfile?.name?.trim()?.firstOrNull()?.uppercase() ?: "S",
+            showBadge = availableUpdateNotice != null,
+            onClick = { navigateSecondary(TopLevelDestination.Library.route) },
+        )
+    }
+    CompositionLocalProvider(LocalStashAvatarTarget provides avatarTarget, LocalStashPlayerExpanded provides playerExpanded, LocalStashThumbnailFlights provides thumbnailFlights) {
         updateChangelogNotice?.let { notice ->
             AppUpdateChangelogDialog(
                 notice = notice,
@@ -464,7 +526,7 @@ fun StashNavHost(
             Scaffold(
                 snackbarHost = { SnackbarHost(snackbarHostState) },
                 bottomBar = {
-                    if (shouldShowBottomNavigation(currentRoute, isFoldLikeLayout)) {
+                    if (shouldShowBottomNavigation(chromeRoute, isFoldLikeLayout)) {
                         val styleTokens = LocalStashStyleTokens.current
                         val navigationDividerColor = if (styleTokens.isSocial) {
                             MaterialTheme.colorScheme.outlineVariant
@@ -521,12 +583,12 @@ fun StashNavHost(
                 },
             ) { paddingValues ->
             androidx.compose.foundation.layout.Row {
-                val navHostModifier = if (shouldApplyScaffoldChromePadding(currentRoute)) {
+                val navHostModifier = if (shouldApplyScaffoldChromePadding(chromeRoute)) {
                     Modifier.weight(1f).padding(paddingValues)
                 } else {
                     Modifier.weight(1f)
                 }
-                if (shouldShowNavigationRail(currentRoute, isFoldLikeLayout)) {
+                if (shouldShowNavigationRail(chromeRoute, isFoldLikeLayout)) {
                     NavigationRail(
                         containerColor = if (LocalStashStyleTokens.current.isSocial) {
                             MaterialTheme.colorScheme.background
@@ -558,10 +620,30 @@ fun StashNavHost(
                     }
                 }
 
+                SharedTransitionLayout(modifier = navHostModifier) {
+                CompositionLocalProvider(LocalStashSharedTransitionScope provides this) {
                 NavHost(
                     navController = navController,
                     startDestination = resolveStashStartDestination(savedProfile != null),
-                    modifier = navHostModifier,
+                    modifier = Modifier.fillMaxSize(),
+                    // Tabs cross-fade; pushed screens slide in a little and settle on a spring. The same
+                    // transitions drive the predictive back preview.
+                    enterTransition = {
+                        if (isTabSwitch(initialState.destination.route, targetState.destination.route)) {
+                            fadeIn(tween(200))
+                        } else {
+                            fadeIn(tween(220)) + slideInHorizontally(stashSpring()) { it / 10 }
+                        }
+                    },
+                    exitTransition = { fadeOut(tween(160)) },
+                    popEnterTransition = { fadeIn(tween(220)) },
+                    popExitTransition = {
+                        if (isTabSwitch(initialState.destination.route, targetState.destination.route)) {
+                            fadeOut(tween(160))
+                        } else {
+                            fadeOut(tween(180)) + slideOutHorizontally(stashSpring()) { it / 10 }
+                        }
+                    },
                 ) {
                     composable(SetupRoute) {
                         ServerSetupRoute(
@@ -679,14 +761,17 @@ fun StashNavHost(
                         )
                     }
                     composable(TopLevelDestination.Performers.route) {
-                        PerformersRoute(
-                            isFoldLikeLayout = isFoldLikeLayout,
-                            onOpenPerformer = { performerId ->
-                                navController.navigate(performerProfileRouteForPerformer(performerId))
-                            },
-                        )
+                        CompositionLocalProvider(LocalStashNavAnimatedScope provides this) {
+                            PerformersRoute(
+                                isFoldLikeLayout = isFoldLikeLayout,
+                                onOpenPerformer = { performerId ->
+                                    navController.navigate(performerProfileRouteForPerformer(performerId))
+                                },
+                            )
+                        }
                     }
                     composable(PerformerProfileRoutePattern) { backStackEntry ->
+                      CompositionLocalProvider(LocalStashNavAnimatedScope provides this) {
                         PerformerProfileRoute(
                             performerId = backStackEntry.arguments?.getString("performerId").orEmpty(),
                             isFoldLikeLayout = isFoldLikeLayout,
@@ -708,6 +793,7 @@ fun StashNavHost(
                                 )
                             },
                         )
+                      }
                     }
                     composable(TopLevelDestination.Library.route) {
                         LibraryRoute(
@@ -716,6 +802,7 @@ fun StashNavHost(
                             onOpenQueue = { navigateSecondary(QueueRoutePath) },
                             onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
                             onOpenDashboard = { navigateSecondary(LegacyHomeRoutePath) },
+                            onBack = { if (!navController.popBackStack()) navigateTopLevel(TopLevelDestination.Home) },
                         )
                     }
                     composable(GalleryRoutePath) {
@@ -751,7 +838,7 @@ fun StashNavHost(
                             onOpenScene = { sceneId ->
                                 playerPresentationMode = PlayerPresentationMode.WatchPage
                                 playerLandscapeAutoFullscreen = false
-                                navController.navigate(playerRouteForScene(sceneId))
+                                showPlayer(sceneId)
                             },
                             onOpenGallery = { linkedGalleryId -> navController.navigate(galleryDetailRouteForGallery(linkedGalleryId)) },
                             onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
@@ -797,29 +884,66 @@ fun StashNavHost(
                             )
                         }
                     }
-                    composable("player/{sceneId}") { backStackEntry ->
-                        PlayerRoute(
-                            sceneId = backStackEntry.arguments?.getString("sceneId") ?: "demo",
-                            isFoldLikeLayout = isFoldLikeLayout,
-                            playbackQueue = playbackQueue,
-                            initialPresentationMode = playerPresentationMode,
-                            initialLandscapeAutoFullscreen = playerLandscapeAutoFullscreen,
-                            initialPlaybackSpeed = playerPlaybackSpeed,
-                            onPlaybackQueueChange = ::updatePlaybackQueue,
-                            onPresentationStateChange = { mode, landscapeAutoFullscreen ->
-                                playerPresentationMode = mode
-                                playerLandscapeAutoFullscreen = landscapeAutoFullscreen
-                            },
-                            onPlaybackSpeedChange = { playerPlaybackSpeed = it },
-                            onOpenScene = { sceneId -> replaceCurrentPlayerScene(sceneId) },
-                            onOpenSettings = { navController.navigate(SettingsDestinations.Root) },
-                            onExitPlayer = ::exitPlayer,
-                            onPlaylistDrawerOpen = ::ensurePlaylistTrailingItems,
-                        )
-                    }
+                }
+                }
                 }
             }
         }
+            activePlayerSceneId?.let { sceneId ->
+                // A fresh player per scene, as when it was its own screen.
+                key(sceneId) {
+                    val playerAlpha = remember { Animatable(if (activeFlight != null) 0f else 1f) }
+                    LaunchedEffect(Unit) {
+                        if (playerAlpha.value < 1f) {
+                            delay(200)
+                            playerAlpha.animateTo(1f, tween(280))
+                        }
+                    }
+                    Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (playerMinimized) 1f else playerAlpha.value }) {
+                    PlayerRoute(
+                        sceneId = sceneId,
+                        isFoldLikeLayout = isFoldLikeLayout,
+                        playbackQueue = playbackQueue,
+                        initialPresentationMode = playerPresentationMode,
+                        initialLandscapeAutoFullscreen = playerLandscapeAutoFullscreen,
+                        initialPlaybackSpeed = playerPlaybackSpeed,
+                        onPlaybackQueueChange = ::updatePlaybackQueue,
+                        onPresentationStateChange = { mode, landscapeAutoFullscreen ->
+                            playerPresentationMode = mode
+                            playerLandscapeAutoFullscreen = landscapeAutoFullscreen
+                        },
+                        onPlaybackSpeedChange = { playerPlaybackSpeed = it },
+                        onOpenScene = { nextSceneId -> replaceCurrentPlayerScene(nextSceneId) },
+                        onOpenSettings = {
+                            playerMinimized = true
+                            navController.navigate(SettingsDestinations.Root)
+                        },
+                        onExitPlayer = ::exitPlayer,
+                        onPlaylistDrawerOpen = ::ensurePlaylistTrailingItems,
+                        minimized = playerMinimized,
+                        onExpand = { playerMinimized = false },
+                        onClosePlayer = ::closePlayer,
+                        miniPlayerBottomPadding = if (shouldShowBottomNavigation(currentRoute, isFoldLikeLayout)) {
+                            MiniPlayerAboveNavigationBar
+                        } else {
+                            0.dp
+                        } + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+                        pauseSignal = playerPauseSignal,
+                    )
+                    }
+                }
+            }
+            activeFlight?.let { flight ->
+                val density = LocalDensity.current
+                val screenWidthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+                val topPx = WindowInsets.statusBars.getTop(density).toFloat()
+                StashThumbnailFlightOverlay(
+                    flight = flight,
+                    // The watch page puts the video full width at the top, 16:9.
+                    target = Rect(0f, topPx, screenWidthPx, topPx + screenWidthPx * 9f / 16f),
+                    onDone = { activeFlight = null },
+                )
+            }
             activeFeedLightbox?.let { request ->
                 FeedLightbox(
                     request = request,
@@ -841,6 +965,7 @@ fun StashNavHost(
                 )
             }
         }
+    }
     }
 }
 

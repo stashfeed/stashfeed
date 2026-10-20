@@ -211,4 +211,9 @@
     <string name="filter_screen_more_criteria">More criteria</string>
     <string name="filter_screen_more_criteria_hint">Set by saved filters; tap × to remove</string>
     <string name="browse_selection_count">%1$d selected</string>
+    <string name="avatar_open_library">Your library and settings</string>
+    <string name="library_you_title">You</string>
+    <string name="mini_player_play">Play</string>
+    <string name="mini_player_pause">Pause</string>
+    <string name="mini_player_close">Close player</string>
 </resources>

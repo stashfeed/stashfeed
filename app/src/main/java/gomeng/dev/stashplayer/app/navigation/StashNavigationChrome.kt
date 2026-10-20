@@ -7,7 +7,7 @@ import gomeng.dev.stashplayer.core.player.PlayerPresentationMode
 import gomeng.dev.stashplayer.core.ui.designsystem.StashTouch
 import java.net.URLEncoder
 
-private val PlayerRoutePattern = "player/{sceneId}"
+internal val PlayerRoutePattern = "player/{sceneId}"
 
 internal enum class StashNavigationColorRole {
     Surface,

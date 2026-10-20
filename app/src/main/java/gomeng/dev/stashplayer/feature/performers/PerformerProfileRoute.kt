@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import gomeng.dev.stashplayer.R
+import gomeng.dev.stashplayer.core.ui.components.stashSharedElement
 import androidx.compose.material3.Surface
 import androidx.compose.ui.platform.LocalConfiguration
 import gomeng.dev.stashplayer.core.model.FeedGallery
@@ -597,6 +598,7 @@ private fun PerformerHeader(
                 imageUrl = card.imageUrl,
                 serverProfile = serverProfile,
                 modifier = Modifier
+                    .stashSharedElement(performerImageSharedKey(card.id))
                     .width(112.dp)
                     .aspectRatio(3f / 4f),
             )

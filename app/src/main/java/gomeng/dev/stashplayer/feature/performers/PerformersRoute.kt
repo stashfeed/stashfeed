@@ -14,6 +14,9 @@ import gomeng.dev.stashplayer.core.ui.components.StashFilterScreen
 import gomeng.dev.stashplayer.core.ui.components.StashHeaderChip
 import gomeng.dev.stashplayer.core.ui.components.rememberStashCollapsingHeaderState
 import gomeng.dev.stashplayer.core.ui.designsystem.StashVisibilityFilterChip
+import gomeng.dev.stashplayer.core.ui.designsystem.StashMediaGridSkeleton
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -239,6 +242,14 @@ fun PerformersRoute(
                 ),
                 modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
                 onRetry = viewModel.loader::retry,
+            )
+            state.items.isEmpty() && !state.hasLoadedOnce -> StashMediaGridSkeleton(
+                columns = if (large) (if (isFoldLikeLayout) 3 else 2) else (if (isFoldLikeLayout) 5 else 3),
+                mediaAspectRatio = 3f / 4f,
+                horizontalPadding = horizontalPadding,
+                rows = 4,
+                mediaShape = RoundedCornerShape(StashRadius.M),
+                modifier = Modifier.padding(top = top + StashSpacing.CardGap),
             )
             state.items.isEmpty() && state.hasLoadedOnce && !state.isLoading -> {
                 if (viewModel.scope == PerformerListScope.Following && viewModel.query.isBlank()) {

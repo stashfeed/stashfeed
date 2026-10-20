@@ -118,6 +118,7 @@ import gomeng.dev.stashplayer.core.ui.designsystem.StashErrorState
 import gomeng.dev.stashplayer.core.ui.designsystem.StashErrorStateModel
 import gomeng.dev.stashplayer.core.ui.designsystem.StashSecondaryButton
 import gomeng.dev.stashplayer.core.ui.designsystem.StashSpacing
+import gomeng.dev.stashplayer.core.ui.designsystem.StashMediaGridSkeleton
 import gomeng.dev.stashplayer.core.ui.designsystem.stashDiscoveryVisualPolicy
 import gomeng.dev.stashplayer.core.ui.discovery.StashDiscoveryFilterSheets
 import gomeng.dev.stashplayer.core.ui.discovery.StashScenesToolbar
@@ -853,9 +854,13 @@ private fun ExploreContent(
                     ),
                     modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
                 )
-                pageState.isLoading && results.isEmpty() -> Box(Modifier.fillMaxSize().padding(top = top), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
+                pageState.isLoading && results.isEmpty() -> StashMediaGridSkeleton(
+                    columns = if (viewMode == StashScenesViewMode.Grid) columns else 1,
+                    mediaAspectRatio = 16f / 9f,
+                    horizontalPadding = horizontalPadding,
+                    modifier = Modifier.padding(top = top + StashSpacing.CardGap),
+                    rows = if (viewMode == StashScenesViewMode.Grid) 5 else 3,
+                )
                 pageState.error != null && results.isEmpty() -> StashErrorState(
                     state = StashErrorStateModel(
                         title = stashString(R.string.explore_load_failed_title),

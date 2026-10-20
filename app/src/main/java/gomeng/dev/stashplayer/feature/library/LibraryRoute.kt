@@ -33,6 +33,10 @@ import androidx.compose.ui.platform.LocalContext
 import gomeng.dev.stashplayer.R
 import gomeng.dev.stashplayer.core.local.StashLocalLibraryRepository
 import gomeng.dev.stashplayer.core.ui.designsystem.StashSpacing
+import gomeng.dev.stashplayer.core.ui.designsystem.StashTopBar
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 
 /** Hub for everything that isn't a feed: the on-device lists and the app settings. */
@@ -43,6 +47,7 @@ fun LibraryRoute(
     onOpenQueue: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDashboard: () -> Unit = {},
+    onBack: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val repository = remember(context) { StashLocalLibraryRepository(context) }
@@ -52,15 +57,23 @@ fun LibraryRoute(
     val historyScenes by repository.playbackHistoryScenes.collectAsState(initial = emptyList())
     val horizontalPadding = if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact
 
+    Column(modifier = Modifier.fillMaxSize()) {
+    StashTopBar(
+        title = stashString(R.string.library_you_title),
+        navigation = {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stashString(R.string.performer_back))
+            }
+        },
+    )
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = horizontalPadding)
-            .padding(top = StashSpacing.SectionGap, bottom = StashSpacing.BottomContentPadding),
+            .padding(top = StashSpacing.CardGap, bottom = StashSpacing.BottomContentPadding),
         verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
     ) {
-        Text(stashString(R.string.navigation_library_label), style = MaterialTheme.typography.headlineLarge)
         LibraryEntry(
             icon = Icons.Outlined.PlayCircleOutline,
             title = stashString(R.string.library_dashboard_title),
@@ -98,6 +111,7 @@ fun LibraryRoute(
             showBadge = hasAvailableUpdate,
             onClick = onOpenSettings,
         )
+    }
     }
 }
 

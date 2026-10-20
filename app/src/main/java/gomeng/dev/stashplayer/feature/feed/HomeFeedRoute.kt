@@ -92,6 +92,10 @@ import gomeng.dev.stashplayer.core.model.SceneCardModel
 import gomeng.dev.stashplayer.core.network.StashServerProfile
 import gomeng.dev.stashplayer.core.network.StashSettingsRepository
 import gomeng.dev.stashplayer.core.player.ratingStepForStashRating100
+import gomeng.dev.stashplayer.core.ui.components.StashAvatarButton
+import gomeng.dev.stashplayer.core.ui.components.LocalStashThumbnailFlights
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.LayoutCoordinates
 import gomeng.dev.stashplayer.core.ui.components.rememberStashThumbnailModel
 import gomeng.dev.stashplayer.core.ui.designsystem.StashEmptyState
 import gomeng.dev.stashplayer.core.ui.designsystem.StashEmptyStateModel
@@ -508,6 +512,7 @@ private fun HomeFeedHeader(
         IconButton(onClick = onOpenSettings) {
             Icon(Icons.Outlined.Settings, contentDescription = stashString(R.string.home_feed_settings))
         }
+        StashAvatarButton()
     }
 }
 
@@ -722,8 +727,18 @@ internal fun ScenePost(
         badge = if (post.isRepost) stashString(R.string.home_feed_repost_badge) else null,
     )
     PostTitle(scene.title, tokens)
+    val flights = LocalStashThumbnailFlights.current
+    val mediaAnchor = remember { arrayOfNulls<LayoutCoordinates>(1) }
     MediaFrame(ratio = feedMediaRatio(post.scene.width, post.scene.height, 16f / 9f), tokens = tokens) {
-        Box(modifier = Modifier.fillMaxSize().clickable(onClick = onOpen)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .onPlaced { mediaAnchor[0] = it }
+                .clickable {
+                    flights?.record(scene.id, mediaAnchor[0], model)
+                    onOpen()
+                },
+        ) {
             if (model != null) {
                 AsyncImage(model = model, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             }

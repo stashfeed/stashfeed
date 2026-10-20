@@ -238,7 +238,7 @@ private fun HeaderSearchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = horizontalPadding, vertical = 6.dp),
+            .padding(start = horizontalPadding, end = if (LocalStashAvatarTarget.current != null) 4.dp else horizontalPadding, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         StashSearchPill(
@@ -269,6 +269,7 @@ private fun HeaderSearchRow(
                 IconButton(onClick = onToggleLayout, enabled = state.fraction > 0.5f) { LayoutIcon(layout) }
             }
         }
+        StashAvatarButton()
     }
 }
 

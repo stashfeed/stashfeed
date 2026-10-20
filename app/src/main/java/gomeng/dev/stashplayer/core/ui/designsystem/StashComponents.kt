@@ -16,6 +16,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -304,5 +306,45 @@ fun StashTonalPill(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             content = content,
         )
+    }
+}
+
+/**
+ * Placeholder for a loading media grid: the same columns and aspect ratio as the real cards, with title lines
+ * under each tile when [textLines] > 0. Shown instead of a spinner on first load.
+ */
+@Composable
+fun StashMediaGridSkeleton(
+    columns: Int,
+    mediaAspectRatio: Float,
+    modifier: Modifier = Modifier,
+    horizontalPadding: Dp = StashSpace.L,
+    gap: Dp = StashSpace.M,
+    rows: Int = 4,
+    textLines: Int = 2,
+    mediaShape: Shape = RoundedCornerShape(StashRadius.S),
+) {
+    Column(
+        modifier = modifier.padding(horizontal = horizontalPadding),
+        verticalArrangement = Arrangement.spacedBy(gap + StashSpace.XS),
+    ) {
+        repeat(rows) {
+            Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                repeat(columns) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(StashSpace.S),
+                    ) {
+                        StashSkeleton(
+                            Modifier.fillMaxWidth().aspectRatio(mediaAspectRatio),
+                            mediaShape,
+                        )
+                        repeat(textLines) { line ->
+                            StashSkeleton(Modifier.fillMaxWidth(if (line == 0) 0.85f else 0.5f).height(10.dp))
+                        }
+                    }
+                }
+            }
+        }
     }
 }

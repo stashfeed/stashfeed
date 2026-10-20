@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import gomeng.dev.stashplayer.R
+import gomeng.dev.stashplayer.core.ui.components.stashSharedElement
 import gomeng.dev.stashplayer.core.model.PerformerCardModel
 import gomeng.dev.stashplayer.core.network.StashServerProfile
 import gomeng.dev.stashplayer.core.ui.components.rememberStashThumbnailModel
@@ -34,6 +35,9 @@ import gomeng.dev.stashplayer.core.ui.designsystem.StashRadii
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 
 /** Performer photo with an initial-letter fallback while there is no image. */
+/** Shared-element key of a performer's photo: the list tile morphs into the profile header. */
+internal fun performerImageSharedKey(performerId: String) = "performer-image-$performerId"
+
 @Composable
 fun PerformerImage(
     name: String,
@@ -84,6 +88,7 @@ fun PerformerTile(
                 imageUrl = performer.imageUrl,
                 serverProfile = serverProfile,
                 modifier = Modifier
+                    .stashSharedElement(performerImageSharedKey(performer.id))
                     .fillMaxWidth()
                     .aspectRatio(3f / 4f),
             )

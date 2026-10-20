@@ -115,12 +115,17 @@ internal fun String.toDurationMsOrNull(): Long? {
     return parts.fold(0L) { total, part -> total * 60 + part } * 1000
 }
 
+/** True while the full player covers the screen; previews and other video underneath stay quiet. */
+val LocalStashPlayerExpanded = androidx.compose.runtime.compositionLocalOf { false }
+
 @Composable
 fun rememberScenePreviewController(serverProfile: StashServerProfile?): ScenePreviewController {
     val context = LocalContext.current.applicationContext
     val headers = remember(serverProfile) { serverProfile?.let { it.authHeadersFor(it.graphQlUrl()) }.orEmpty() }
     val controller = remember(context, headers) { ScenePreviewController(context, headers) }
     DisposableEffect(controller) { onDispose { controller.release() } }
+    val playerExpanded = LocalStashPlayerExpanded.current
+    androidx.compose.runtime.LaunchedEffect(playerExpanded) { if (playerExpanded) controller.stop() }
     return controller
 }
 

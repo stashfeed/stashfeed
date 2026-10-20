@@ -2,7 +2,12 @@ package gomeng.dev.stashplayer.feature.player
 
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -47,7 +52,13 @@ internal fun PlayerSpriteThumbnail(
     val bitmap = ((painter.state as? AsyncImagePainter.State.Success)?.result?.drawable as? BitmapDrawable)?.bitmap
     if (bitmap != null && frame.fitsSpriteSheet(bitmap.width, bitmap.height)) {
         val image = remember(bitmap) { bitmap.asImageBitmap() }
-        Canvas(Modifier.size(width = 112.dp, height = 63.dp)) {
+        // 16:9 frame with the app's small radius and a thin light edge, so it reads on dark and bright video.
+        Canvas(
+            Modifier
+                .size(width = 160.dp, height = 90.dp)
+                .clip(RoundedCornerShape(StashRadius.S))
+                .border(1.5.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(StashRadius.S)),
+        ) {
             val scale = minOf(size.width / frame.width, size.height / frame.height)
             val width = (frame.width * scale).roundToInt().coerceAtLeast(1)
             val height = (frame.height * scale).roundToInt().coerceAtLeast(1)
