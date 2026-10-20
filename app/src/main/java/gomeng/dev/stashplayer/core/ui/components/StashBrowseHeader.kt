@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.core.ui.components
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -390,8 +391,8 @@ private fun HeaderChip(chip: StashHeaderChip) {
     Row(
         modifier = Modifier
             .height(32.dp)
-            .border(1.dp, colors.outlineVariant, RoundedCornerShape(16.dp))
-            .background(colors.secondaryContainer.copy(alpha = 0.55f), RoundedCornerShape(16.dp))
+            .border(1.dp, colors.outlineVariant, RoundedCornerShape(StashRadius.M))
+            .background(colors.secondaryContainer.copy(alpha = 0.55f), RoundedCornerShape(StashRadius.M))
             .clickable(onClick = chip.onClick)
             .padding(start = 12.dp, end = if (chip.onClear != null) 2.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically,

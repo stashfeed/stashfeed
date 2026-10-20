@@ -12,6 +12,9 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -345,6 +348,92 @@ fun StashMediaGridSkeleton(
                     }
                 }
             }
+        }
+    }
+}
+
+/* ---------------------------------------------------------------------------------------------------------------
+ * Grouped lists (library, settings)
+ * ------------------------------------------------------------------------------------------------------------- */
+
+/** A rounded group of rows on the first surface step; rows inside are separated by hairlines. */
+@Composable
+fun StashListGroup(
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(StashSpace.S)) {
+        title?.let {
+            Text(
+                text = it.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = StashSpace.XS),
+            )
+        }
+        Surface(
+            shape = RoundedCornerShape(StashRadius.M),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(content = content)
+        }
+    }
+}
+
+/** One row of a [StashListGroup]: optional icon, title and supporting text, trailing value or control. */
+@Composable
+fun StashListRow(
+    title: String,
+    modifier: Modifier = Modifier,
+    supporting: String? = null,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    value: String? = null,
+    showBadge: Boolean = false,
+    showDivider: Boolean = true,
+    showChevron: Boolean = true,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .padding(horizontal = StashSpace.L, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(StashSpace.M + 2.dp),
+        ) {
+            icon?.let {
+                androidx.compose.material3.Icon(it, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                supporting?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (showBadge) {
+                Box(Modifier.size(8.dp).background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape))
+            }
+            value?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            }
+            when {
+                trailing != null -> trailing()
+                onClick != null && showChevron -> androidx.compose.material3.Icon(
+                    androidx.compose.material.icons.Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (showDivider) {
+            androidx.compose.material3.HorizontalDivider(
+                modifier = Modifier.padding(start = if (icon != null) 54.dp else StashSpace.L),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
         }
     }
 }

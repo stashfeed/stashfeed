@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.core.ui.discovery
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -421,7 +422,7 @@ private fun SavedVideoFiltersEditor(
                 modifier = Modifier.weight(1f),
                 singleLine = true,
                 label = { Text(stashString(R.string.filter_screen_save_as)) },
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(StashRadius.M),
             )
             Button(
                 onClick = {
@@ -482,7 +483,7 @@ private fun DateDurationEditor(filter: StashVideoFilterState, onChange: (StashVi
             singleLine = true,
             label = { Text(stashString(R.string.auto_kr_0306)) },
             placeholder = { Text("YYYY-MM-DD") },
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(StashRadius.M),
         )
         OutlinedTextField(
             value = endDate,
@@ -491,7 +492,7 @@ private fun DateDurationEditor(filter: StashVideoFilterState, onChange: (StashVi
             singleLine = true,
             label = { Text(stashString(R.string.auto_kr_0307)) },
             placeholder = { Text("YYYY-MM-DD") },
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(StashRadius.M),
         )
     }
 
@@ -520,7 +521,7 @@ private fun DateDurationEditor(filter: StashVideoFilterState, onChange: (StashVi
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             label = { Text(stashString(R.string.auto_kr_0310)) },
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(StashRadius.M),
         )
         OutlinedTextField(
             value = maxMinutes,
@@ -529,7 +530,7 @@ private fun DateDurationEditor(filter: StashVideoFilterState, onChange: (StashVi
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             label = { Text(stashString(R.string.auto_kr_0312)) },
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(StashRadius.M),
         )
     }
 
@@ -549,7 +550,7 @@ private fun DateDurationEditor(filter: StashVideoFilterState, onChange: (StashVi
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             placeholder = { Text("0") },
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(StashRadius.M),
         )
     }
 

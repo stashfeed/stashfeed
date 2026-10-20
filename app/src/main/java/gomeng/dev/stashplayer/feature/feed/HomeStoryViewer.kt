@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.feature.feed
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -257,7 +258,7 @@ internal fun HomeStoryViewer(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(StashRadius.S))
                     .padding(horizontal = 8.dp, vertical = 4.dp),
             )
             Button(onClick = { onOpenScene(current.scene, story.scenes.map { it.scene }) }) {

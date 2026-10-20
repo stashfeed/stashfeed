@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.feature.player
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -74,7 +75,7 @@ internal fun PlayerSideControlSliderOverlay(
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
             contentColor = MaterialTheme.colorScheme.onSurface,
             tonalElevation = 6.dp,
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(StashRadius.L),
         ) {
             Column(
                 modifier = Modifier

@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.feature.home
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSpacing
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -214,7 +215,7 @@ private fun HomeHubContent(
     onPlayQueue: () -> Unit,
     onShuffleQueue: () -> Unit,
 ) {
-    val horizontalPadding = if (isFoldLikeLayout) 24.dp else 14.dp
+    val horizontalPadding = if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact
     val cardWidth = if (isFoldLikeLayout) 168.dp else 142.dp
     val thumbnailHeight = if (isFoldLikeLayout) 212.dp else 190.dp
     val hasProfile = !hubState.requiresSetup

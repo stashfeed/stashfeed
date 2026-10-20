@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.core.ui.components
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -439,7 +440,7 @@ fun StashInlineEntityPicker(
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
         label = { Text(searchLabel) },
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(StashRadius.M),
     )
     if (excluding) {
         Text(

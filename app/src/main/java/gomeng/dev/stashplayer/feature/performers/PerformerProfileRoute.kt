@@ -65,6 +65,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import gomeng.dev.stashplayer.R
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSpace
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSecondaryButton
+import gomeng.dev.stashplayer.core.ui.designsystem.StashPrimaryButton
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.blur
 import gomeng.dev.stashplayer.core.ui.components.stashSharedElement
 import androidx.compose.material3.Surface
 import androidx.compose.ui.platform.LocalConfiguration
@@ -290,7 +299,8 @@ fun PerformerProfileRoute(
         ) {
             val fullSpan: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
 
-            item(key = "top_bar", span = fullSpan) {
+            // Once the performer loaded, the back button sits on the hero photo instead.
+            if (viewModel.detailState !is PerformerDetailState.Ready) item(key = "top_bar", span = fullSpan) {
                 Row(modifier = itemPadding, verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stashString(R.string.performer_back))
@@ -319,6 +329,9 @@ fun PerformerProfileRoute(
                     Box(itemPadding) {
                         PerformerHeader(
                             detail = detail.detail,
+                            onNavigateBack = onNavigateBack,
+                            // The hero runs edge to edge whatever padding the tab's grid uses.
+                            heroBleed = horizontalPadding,
                             serverProfile = profile,
                             isUpdatingFollow = viewModel.isUpdatingFollow,
                             onToggleFollow = {
@@ -585,64 +598,108 @@ private fun ProfileEmptyText(text: String) {
 @Composable
 private fun PerformerHeader(
     detail: PerformerDetailModel,
+    onNavigateBack: () -> Unit,
+    heroBleed: Dp,
     serverProfile: StashServerProfile?,
     isUpdatingFollow: Boolean,
     onToggleFollow: () -> Unit,
 ) {
     val card = detail.card
     var detailsExpanded by rememberSaveable(card.id) { mutableStateOf(false) }
+    val heroModel = rememberStashThumbnailModel(card.imageUrl, serverProfile)
+    val background = MaterialTheme.colorScheme.background
     Column(verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(StashSpacing.CardPadding)) {
-            PerformerImage(
-                name = card.name,
-                imageUrl = card.imageUrl,
-                serverProfile = serverProfile,
-                modifier = Modifier
-                    .stashSharedElement(performerImageSharedKey(card.id))
-                    .width(112.dp)
-                    .aspectRatio(3f / 4f),
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    text = card.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+        // Hero: the performer's photo, blurred and fading into the page, with the sharp photo card on top.
+        Box(
+            modifier = Modifier
+                .bleedHorizontally(heroBleed)
+                .fillMaxWidth()
+                .height(260.dp),
+        ) {
+            if (heroModel != null) {
+                AsyncImage(
+                    model = heroModel,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = 0.7f }
+                        .blur(28.dp),
                 )
-                if (detail.aliases.isNotEmpty()) {
+            }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(listOf(background.copy(alpha = 0.15f), background.copy(alpha = 0.55f), background))),
+            )
+            IconButton(
+                onClick = onNavigateBack,
+                modifier = Modifier
+                    .padding(StashSpace.XS)
+                    .align(Alignment.TopStart),
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stashString(R.string.performer_back))
+            }
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(horizontal = heroBleed),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(StashSpace.L),
+            ) {
+                PerformerImage(
+                    name = card.name,
+                    imageUrl = card.imageUrl,
+                    serverProfile = serverProfile,
+                    shape = RoundedCornerShape(StashRadius.M),
+                    modifier = Modifier
+                        .stashSharedElement(performerImageSharedKey(card.id))
+                        .width(104.dp)
+                        .aspectRatio(3f / 4f),
+                )
+                Column(modifier = Modifier.weight(1f).padding(bottom = StashSpace.XS), verticalArrangement = Arrangement.spacedBy(StashSpace.XS)) {
                     Text(
-                        text = stashString(R.string.performer_aliases, detail.aliases.joinToString(", ")),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = card.name,
+                        style = MaterialTheme.typography.headlineSmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                }
-                val facts = listOfNotNull(
-                    detail.birthdate,
-                    detail.country,
-                    detail.heightCm?.let { "$it cm" },
-                    detail.hairColor,
-                ).joinToString(" · ")
-                if (facts.isNotBlank()) {
-                    Text(facts, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                if (card.favorite) {
-                    OutlinedButton(onClick = onToggleFollow, enabled = !isUpdatingFollow) {
-                        Icon(Icons.Filled.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(stashString(R.string.performer_following), modifier = Modifier.padding(start = 6.dp))
+                    val facts = listOfNotNull(
+                        detail.birthdate,
+                        detail.country,
+                        detail.heightCm?.let { "$it cm" },
+                        detail.hairColor,
+                    ).joinToString(" · ")
+                    if (facts.isNotBlank()) {
+                        Text(facts, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                } else {
-                    Button(onClick = onToggleFollow, enabled = !isUpdatingFollow) {
-                        Icon(Icons.Outlined.FavoriteBorder, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Text(stashString(R.string.performer_follow), modifier = Modifier.padding(start = 6.dp))
+                    if (card.favorite) {
+                        StashSecondaryButton(
+                            text = stashString(R.string.performer_following),
+                            onClick = onToggleFollow,
+                            enabled = !isUpdatingFollow,
+                            icon = { Icon(Icons.Filled.Favorite, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary) },
+                        )
+                    } else {
+                        StashPrimaryButton(
+                            text = stashString(R.string.performer_follow),
+                            onClick = onToggleFollow,
+                            enabled = !isUpdatingFollow,
+                            icon = { Icon(Icons.Outlined.FavoriteBorder, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                        )
                     }
                 }
             }
+        }
+        if (detail.aliases.isNotEmpty()) {
+            Text(
+                text = stashString(R.string.performer_aliases, detail.aliases.joinToString(", ")),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(StashSpacing.CardGap)) {
             PerformerStat(card.sceneCount, stashString(R.string.performer_stat_scenes), Modifier.weight(1f))
@@ -680,4 +737,13 @@ private fun PerformerStat(value: Int, label: String, modifier: Modifier = Modifi
         Text(value.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+/** Lets a list item draw [horizontal] past the list's side padding on both sides (full-bleed headers). */
+private fun Modifier.bleedHorizontally(horizontal: Dp): Modifier = layout { measurable, constraints ->
+    val extra = horizontal.roundToPx() * 2
+    val placeable = measurable.measure(
+        constraints.copy(minWidth = constraints.maxWidth + extra, maxWidth = constraints.maxWidth + extra),
+    )
+    layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
 }

@@ -51,6 +51,18 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import gomeng.dev.stashplayer.R
+import androidx.compose.material.icons.Icons
+import gomeng.dev.stashplayer.core.ui.designsystem.StashTopBar
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSpacing
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSpace
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
+import gomeng.dev.stashplayer.core.ui.designsystem.StashListRow
+import gomeng.dev.stashplayer.core.ui.designsystem.StashListGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.CardDefaults
 import gomeng.dev.stashplayer.core.network.AppUpdateChecker
 import gomeng.dev.stashplayer.core.network.AppUpdateInstaller
 import gomeng.dev.stashplayer.core.network.AppUpdateNotice
@@ -702,15 +714,24 @@ fun SettingsRoute(
     isFoldLikeLayout: Boolean,
     hasAvailableUpdate: Boolean = false,
     onOpenSection: (String) -> Unit,
+    onNavigateBack: (() -> Unit)? = null,
 ) {
-    SettingsScreenScaffold(isFoldLikeLayout = isFoldLikeLayout) {
-        Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium)
-        SettingsListCopy.sections.forEach { section ->
-            SettingsSectionCard(
-                section = section,
-                showBadge = hasAvailableUpdate && section == SettingsSection.Support,
-                onClick = { onOpenSection(section.route) },
-            )
+    SettingsScreenScaffold(
+        title = stringResource(R.string.settings_title),
+        isFoldLikeLayout = isFoldLikeLayout,
+        onNavigateBack = onNavigateBack,
+    ) {
+        StashListGroup {
+            val sections = SettingsListCopy.sections
+            sections.forEachIndexed { index, section ->
+                StashListRow(
+                    title = stringResource(section.title),
+                    supporting = stringResource(section.description),
+                    showBadge = hasAvailableUpdate && section == SettingsSection.Support,
+                    showDivider = index != sections.lastIndex,
+                    onClick = { onOpenSection(section.route) },
+                )
+            }
         }
     }
 }
@@ -724,11 +745,11 @@ fun SettingsDetailRoute(
     onNavigateBack: () -> Unit,
     onOpenOnboarding: () -> Unit,
 ) {
-    SettingsScreenScaffold(isFoldLikeLayout = isFoldLikeLayout) {
-        TextButton(onClick = onNavigateBack) {
-            Text(stringResource(R.string.settings_back_button))
-        }
-        Text(stringResource(section.title), style = MaterialTheme.typography.headlineMedium)
+    SettingsScreenScaffold(
+        title = stringResource(section.title),
+        isFoldLikeLayout = isFoldLikeLayout,
+        onNavigateBack = onNavigateBack,
+    ) {
         when (section) {
             SettingsSection.Server -> ServerSettingsContent(onOpenOnboarding = onOpenOnboarding)
             SettingsSection.Security -> SecuritySettingsContent()
@@ -744,58 +765,49 @@ fun SettingsDetailRoute(
     }
 }
 
+/** Settings pages: the shared top bar with back, then a scrolling column of cards. */
 @Composable
 private fun SettingsScreenScaffold(
+    title: String,
     isFoldLikeLayout: Boolean,
+    onNavigateBack: (() -> Unit)?,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(if (isFoldLikeLayout) 24.dp else 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        content = content,
-    )
+    Column(modifier = Modifier.fillMaxSize()) {
+        StashTopBar(
+            title = title,
+            navigation = onNavigateBack?.let { back ->
+                {
+                    IconButton(onClick = back) {
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.settings_back_button))
+                    }
+                }
+            },
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact)
+                .padding(top = StashSpace.S, bottom = StashSpacing.BottomContentPadding),
+            verticalArrangement = Arrangement.spacedBy(StashSpace.M),
+            content = content,
+        )
+    }
 }
 
+/** The card every setting sits on: the first surface step, the card radius, no shadow. */
 @Composable
-private fun SettingsSectionCard(
-    section: SettingsSection,
-    showBadge: Boolean,
-    onClick: () -> Unit,
+private fun SettingsCard(
+    onClick: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(stringResource(section.title), style = MaterialTheme.typography.titleMedium)
-            }
-            if (showBadge) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape),
-                )
-            }
-            Text(
-                stringResource(R.string.settings_row_open_indicator),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+    val shape = RoundedCornerShape(StashRadius.M)
+    val colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+    if (onClick != null) {
+        Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = shape, colors = colors, content = content)
+    } else {
+        Card(modifier = Modifier.fillMaxWidth(), shape = shape, colors = colors, content = content)
     }
 }
 
@@ -1086,7 +1098,7 @@ private fun ServerSettingsContent(onOpenOnboarding: () -> Unit) {
         )
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1373,7 +1385,7 @@ private fun ServerSettingsContent(onOpenOnboarding: () -> Unit) {
         },
     )
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1437,7 +1449,7 @@ private fun ServerLibrarySettingsCard(
     onRequestSelectiveScan: () -> Unit,
 ) {
     val controlsEnabled = serverConfigured && createGalleriesFromFolders != null && !loading && !saving
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1709,7 +1721,7 @@ private fun SecuritySettingsContent() {
         },
     )
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2105,7 +2117,7 @@ private fun DevelopmentSettingsContent() {
     val coroutineScope = rememberCoroutineScope()
     var logStatus by remember { mutableStateOf<String?>(null) }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2130,7 +2142,7 @@ private fun DevelopmentSettingsContent() {
         }
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2298,7 +2310,7 @@ private fun SettingsActionCard(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2324,11 +2336,7 @@ private fun SettingsLinkCard(
     descriptionText: String?,
     onClick: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    ) {
+    SettingsCard(onClick = onClick) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -2376,7 +2384,7 @@ private fun SettingsUiScaleSliderCard(
     val previewPercent = (previewOption.uiScale.multiplier * 100).roundToInt()
     val previewLabel = stringResource(previewOption.label)
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2436,7 +2444,7 @@ private fun SettingsSubtitleFontScaleSliderCard(
 
     val previewPercent = (coerceSubtitleFontScale(sliderValue) * 100).roundToInt()
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2490,7 +2498,7 @@ private fun SettingsSwitchCard(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2517,7 +2525,7 @@ private fun ShortsRecommendationResetCard(
     @StringRes feedback: Int?,
     onRequestReset: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2546,7 +2554,7 @@ private fun ShortsMaxDurationSliderCard(
     onMaxDurationChange: (Int) -> Unit,
 ) {
     var localValue by remember(maxDurationSeconds) { mutableFloatStateOf(maxDurationSeconds.toFloat()) }
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -2588,7 +2596,7 @@ private fun SettingsRadioGroupCard(
     @StringRes description: Int,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    SettingsCard {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

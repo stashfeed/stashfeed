@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.feature.player
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -527,7 +528,7 @@ private fun PlayerSeekPreviewTimelineCard(
             .semantics {
                 contentDescription = state.contentDescription
             },
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(StashRadius.M),
         color = StashColors.ScrimStrong.copy(alpha = StashAlpha.PlayerHudSurface),
         contentColor = StashColors.TextPrimary,
         border = androidx.compose.foundation.BorderStroke(1.dp, StashColors.PlayerChromeBorder),

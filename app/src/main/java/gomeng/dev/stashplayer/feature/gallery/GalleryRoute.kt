@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.feature.gallery
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import gomeng.dev.stashplayer.core.model.StashSavedFilterMode
 import gomeng.dev.stashplayer.core.model.StashServerSavedFilter
 import gomeng.dev.stashplayer.core.model.withServerSavedFilter
@@ -91,6 +92,8 @@ import coil.compose.AsyncImage
 import coil.imageLoader
 import coil.request.ImageRequest
 import gomeng.dev.stashplayer.R
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import gomeng.dev.stashplayer.core.ui.designsystem.StashTopBar
 import gomeng.dev.stashplayer.core.local.LocalSavedGalleryFilter
 import gomeng.dev.stashplayer.core.local.LocalSavedImageFilter
 import gomeng.dev.stashplayer.core.local.StashLocalLibraryRepository
@@ -2669,7 +2672,7 @@ internal fun GalleryPhotoLargeCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(ratio)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(StashRadius.M))
                 .background(MaterialTheme.colorScheme.surfaceVariant),
         ) {
             // The full image: the thumbnail is too small for a full-width tile. Coil scales it to the tile size.
@@ -2715,7 +2718,7 @@ private fun GalleryDetailContent(
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val horizontalPadding = if (isFoldLikeLayout) 48.dp else 24.dp
+    val horizontalPadding = if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact
     val gridGap = StashSpacing.CardGap
     val bottomContentPadding = 96.dp
     val columns = stashGalleryImageGridColumnCount(isFoldLikeLayout)
@@ -2737,20 +2740,15 @@ private fun GalleryDetailContent(
         }
 
         Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(top = StashSpacing.SectionGap),
+        modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
     ) {
-        StashScreenHeader(
+        StashTopBar(
             title = title,
-            subtitle = stringResource(R.string.gallery_detail_subtitle),
-            modifier = Modifier.padding(horizontal = horizontalPadding),
-            trailing = {
-                StashSecondaryButton(
-                    text = stringResource(R.string.settings_back_button),
-                    onClick = onNavigateBack,
-                )
+            navigation = {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.settings_back_button))
+                }
             },
         )
 

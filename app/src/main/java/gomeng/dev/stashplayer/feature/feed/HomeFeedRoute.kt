@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.feature.feed
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -93,6 +94,12 @@ import gomeng.dev.stashplayer.core.network.StashServerProfile
 import gomeng.dev.stashplayer.core.network.StashSettingsRepository
 import gomeng.dev.stashplayer.core.player.ratingStepForStashRating100
 import gomeng.dev.stashplayer.core.ui.components.StashAvatarButton
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import gomeng.dev.stashplayer.core.ui.designsystem.stashPressScale
+import gomeng.dev.stashplayer.core.ui.designsystem.rememberStashHaptics
+import gomeng.dev.stashplayer.core.ui.designsystem.StashColors
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSpace
+import gomeng.dev.stashplayer.core.ui.designsystem.StashTopBar
 import gomeng.dev.stashplayer.core.ui.components.LocalStashThumbnailFlights
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -484,36 +491,39 @@ private fun HomeFeedHeader(
     onOpenSettings: () -> Unit,
     onRefresh: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Image(
-            painter = painterResource(R.drawable.ic_stashy_mark),
-            contentDescription = null,
-            modifier = Modifier.size(32.dp),
-        )
-        Column(modifier = Modifier.weight(1f).padding(start = 10.dp)) {
-            Text(stashString(R.string.app_name), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
-            Text(
-                text = stashString(R.string.home_feed_window, lookbackDays),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    StashTopBar(
+        title = null,
+        modifier = Modifier.padding(top = StashSpace.XS),
+        titleContent = {
+            Image(
+                painter = painterResource(R.drawable.ic_stashy_mark),
+                contentDescription = null,
+                modifier = Modifier.size(30.dp),
             )
-        }
-        IconButton(onClick = onRefresh) {
-            Icon(Icons.Outlined.Refresh, contentDescription = stashString(R.string.home_feed_refresh))
-        }
-        IconButton(onClick = onOpenFilter) {
-            BadgedBox(badge = { if (filterCount > 0) Badge { Text(filterCount.toString()) } }) {
-                Icon(Icons.Outlined.Tune, contentDescription = stashString(R.string.for_you_filter))
+            Column(modifier = Modifier.padding(start = 10.dp)) {
+                Text(stashString(R.string.app_name), style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    text = stashString(R.string.home_feed_window, lookbackDays),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
-        }
-        IconButton(onClick = onOpenSettings) {
-            Icon(Icons.Outlined.Settings, contentDescription = stashString(R.string.home_feed_settings))
-        }
-        StashAvatarButton()
-    }
+        },
+        actions = {
+            IconButton(onClick = onRefresh) {
+                Icon(Icons.Outlined.Refresh, contentDescription = stashString(R.string.home_feed_refresh))
+            }
+            IconButton(onClick = onOpenFilter) {
+                BadgedBox(badge = { if (filterCount > 0) Badge { Text(filterCount.toString()) } }) {
+                    Icon(Icons.Outlined.Tune, contentDescription = stashString(R.string.for_you_filter))
+                }
+            }
+            IconButton(onClick = onOpenSettings) {
+                Icon(Icons.Outlined.Settings, contentDescription = stashString(R.string.home_feed_settings))
+            }
+            StashAvatarButton()
+        },
+    )
 }
 
 @Composable
@@ -531,7 +541,7 @@ private fun StoriesRow(
             Column(
                 modifier = Modifier
                     .width(70.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(StashRadius.M))
                     .clickable { onOpenStory(index) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -676,14 +686,22 @@ private fun ActionChip(
     onLongClick: (() -> Unit)? = null,
 ) {
     val haptics = LocalHapticFeedback.current
+    val stashHaptics = rememberStashHaptics()
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
             .heightIn(min = 36.dp)
+            .stashPressScale(interaction, 0.92f)
             .clip(RoundedCornerShape(50))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .combinedClickable(
+                interactionSource = interaction,
+                indication = androidx.compose.foundation.LocalIndication.current,
                 onClickLabel = contentDescription,
-                onClick = onClick,
+                onClick = {
+                    stashHaptics.tick()
+                    onClick()
+                },
                 onLongClick = onLongClick?.let { longClick ->
                     {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -797,7 +815,7 @@ private fun SceneActionBar(
                 Icon(
                     if (stars > 0f) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     contentDescription = null,
-                    tint = if (stars > 0f) Color(0xFFFBBF24) else MaterialTheme.colorScheme.onSurface,
+                    tint = if (stars > 0f) StashColors.Star else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(18.dp),
                 )
             },
@@ -986,7 +1004,7 @@ private fun PackPost(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(StashRadius.M))
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                         .clickable { onOpenScene(scene.scene) },
                 ) {

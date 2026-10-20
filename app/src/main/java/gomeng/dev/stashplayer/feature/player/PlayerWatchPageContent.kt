@@ -90,6 +90,11 @@ import gomeng.dev.stashplayer.core.ui.designsystem.StashTagChipModel
 import gomeng.dev.stashplayer.core.ui.designsystem.stashSurfaceTreatment
 import gomeng.dev.stashplayer.core.ui.designsystem.toStashSurfaceThemeColor
 import gomeng.dev.stashplayer.R
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import gomeng.dev.stashplayer.core.ui.designsystem.stashPressScale
+import gomeng.dev.stashplayer.core.ui.designsystem.rememberStashHaptics
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 
 @Composable
@@ -394,26 +399,28 @@ private fun PlayerWatchPageActionChip(
         PlayerExpandedStashActionVisualState.Disabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f)
         PlayerExpandedStashActionVisualState.Loading -> StashColors.Primary.copy(alpha = 0.18f)
         PlayerExpandedStashActionVisualState.Error -> StashColors.Error.copy(alpha = 0.18f)
-        PlayerExpandedStashActionVisualState.Inactive -> when (item.action) {
-            PlayerExpandedStashAction.MoreDetails -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.74f)
-            PlayerExpandedStashAction.StashTag -> StashColors.Primary.copy(alpha = 0.14f)
-            PlayerExpandedStashAction.OCounter -> StashColors.Warning.copy(alpha = 0.16f)
-            else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f)
-        }
+        // Tonal pills like everywhere else; only an active state gets a colored edge.
+        PlayerExpandedStashActionVisualState.Inactive -> MaterialTheme.colorScheme.surfaceContainer
     }
     val borderColor = when (item.visualState) {
         PlayerExpandedStashActionVisualState.Active -> accentColor.copy(alpha = 0.56f)
         PlayerExpandedStashActionVisualState.Loading -> StashColors.Primary.copy(alpha = 0.44f)
         PlayerExpandedStashActionVisualState.Error -> StashColors.Error.copy(alpha = 0.48f)
-        else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.82f)
+        else -> Color.Transparent
     }
     val contentAlpha = if (item.enabled) 1f else StashAlpha.DisabledContent
+    val haptics = rememberStashHaptics()
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
+            .stashPressScale(interaction, 0.94f)
             .clip(shape)
             .background(containerColor)
             .border(width = 1.dp, color = borderColor, shape = shape)
-            .clickable(enabled = item.enabled, onClick = onClick)
+            .clickable(interactionSource = interaction, indication = LocalIndication.current, enabled = item.enabled) {
+                haptics.tick()
+                onClick()
+            }
             .semantics { contentDescription = item.contentDescription }
             .padding(horizontal = 13.dp, vertical = 9.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),

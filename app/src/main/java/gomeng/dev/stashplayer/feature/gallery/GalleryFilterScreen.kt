@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.feature.gallery
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -196,7 +197,7 @@ internal fun <F> GalleryLikeFilterScreen(
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     label = { Text(stashString(R.string.filter_screen_save_as)) },
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(StashRadius.M),
                 )
                 Button(
                     onClick = {

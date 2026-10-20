@@ -803,6 +803,7 @@ fun StashNavHost(
                             onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
                             onOpenDashboard = { navigateSecondary(LegacyHomeRoutePath) },
                             onBack = { if (!navController.popBackStack()) navigateTopLevel(TopLevelDestination.Home) },
+                            onOpenSettingsSection = { route -> navigateSecondary(route) },
                         )
                     }
                     composable(GalleryRoutePath) {
@@ -857,6 +858,7 @@ fun StashNavHost(
                             },
                             onOpenBrowse = { navigateTopLevel(TopLevelDestination.Explore) },
                             onOpenExplore = { navigateTopLevel(TopLevelDestination.Explore) },
+                            onNavigateBack = { if (!navController.popBackStack()) navigateTopLevel(TopLevelDestination.Home) },
                         )
                     }
                     composable(SettingsDestinations.Root) {
@@ -864,6 +866,7 @@ fun StashNavHost(
                             isFoldLikeLayout = isFoldLikeLayout,
                             hasAvailableUpdate = availableUpdateNotice != null,
                             onOpenSection = { route -> navController.navigate(route) },
+                            onNavigateBack = { if (!navController.popBackStack()) navigateTopLevel(TopLevelDestination.Home) },
                         )
                     }
                     SettingsSection.entries.forEach { section ->

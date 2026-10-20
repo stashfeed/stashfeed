@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.feature.player
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -532,7 +533,7 @@ private fun PlayerExpandedInfoDrawerContent(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(StashRadius.M))
             .background(Color.White.copy(alpha = 0.08f))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -570,7 +571,7 @@ private fun PlayerExpandedInfoDrawerContent(
                     if (revealState.similarVideosVisible) {
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(StashRadius.M),
                             color = MaterialTheme.colorScheme.surface,
                             contentColor = MaterialTheme.colorScheme.onSurface,
                         ) {

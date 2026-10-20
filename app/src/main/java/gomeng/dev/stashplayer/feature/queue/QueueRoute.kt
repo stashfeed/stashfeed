@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.feature.queue
 
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSpacing
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -47,6 +48,11 @@ import gomeng.dev.stashplayer.core.ui.components.rememberStashThumbnailModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import gomeng.dev.stashplayer.R
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import gomeng.dev.stashplayer.core.ui.designsystem.StashTopBar
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 
 @Composable
@@ -56,6 +62,7 @@ fun QueueRoute(
     onOpenScene: (String, List<SceneCardModel>, Boolean) -> Unit,
     onOpenBrowse: () -> Unit,
     onOpenExplore: () -> Unit,
+    onNavigateBack: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val repository = remember(context) { StashLocalLibraryRepository(context) }
@@ -176,12 +183,20 @@ fun QueueRoute(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(contentPadding)
-                .padding(if (isFoldLikeLayout) 24.dp else 16.dp),
+                .padding(if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
         item {
-            StashScreenHeader(
+            StashTopBar(
                 title = stashString(R.string.auto_kr_0004),
+                modifier = Modifier.padding(horizontal = 0.dp),
+                navigation = onNavigateBack?.let { back ->
+                    {
+                        IconButton(onClick = back) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stashString(R.string.performer_back))
+                        }
+                    }
+                },
             )
         }
 
