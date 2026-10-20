@@ -552,6 +552,23 @@ class StashGraphQlClient(
         resolveUrl = profile::authenticatedUrl,
     )
 
+    /** A page of feed scenes (newest added first) matching [sceneFilter]; used by a performer's profile feed. */
+    suspend fun findFeedScenesPage(perPage: Int, page: Int, sceneFilter: Map<String, Any?>): FeedPage<FeedScene> {
+        val json = execute(
+            FEED_SCENES_PAGE_QUERY,
+            mapOf("perPage" to perPage, "page" to page, "sort" to "created_at", "sceneFilter" to sceneFilter),
+        )
+        return FeedPage(parseHomeFeedScenesResponse(json, resolveUrl = profile::authenticatedUrl), parseFeedPageCount(json, "findScenes"))
+    }
+
+    suspend fun findFeedGalleriesPage(perPage: Int, page: Int, galleryFilter: Map<String, Any?>): FeedPage<FeedGallery> {
+        val json = execute(
+            FEED_GALLERIES_PAGE_QUERY,
+            mapOf("perPage" to perPage, "page" to page, "sort" to "created_at", "galleryFilter" to galleryFilter),
+        )
+        return FeedPage(parseHomeFeedGalleriesResponse(json, resolveUrl = profile::authenticatedUrl), parseFeedPageCount(json, "findGalleries"))
+    }
+
     suspend fun findSceneEntities(
         perPage: Int = 50,
         page: Int = 1,
@@ -1434,6 +1451,8 @@ private fun StashMediaFormatFilter.toGraphQlCriteria(): Map<String, Any?> = buil
 }
 
 private fun StashGalleryFilterState.toGraphQlGalleryFilterOrNull(): Map<String, Any?>? = buildMap {
+    // A filter saved in the Stash web UI is the base; the app's own criteria below refine or override it.
+    savedFilter?.criteria?.let { putAll(it) }
     text.title.toTextCriterionOrNull()?.let { put("title", it) }
     text.details.toTextCriterionOrNull()?.let { put("details", it) }
     text.code.toTextCriterionOrNull()?.let { put("code", it) }
@@ -1460,6 +1479,8 @@ private fun StashGalleryFilterState.toGraphQlGalleryFilterOrNull(): Map<String, 
 }.takeIf { it.isNotEmpty() }
 
 private fun StashImageFilterState.toGraphQlImageFilterOrNull(): Map<String, Any?>? = buildMap {
+    // A filter saved in the Stash web UI is the base; the app's own criteria below refine or override it.
+    savedFilter?.criteria?.let { putAll(it) }
     text.title.toTextCriterionOrNull()?.let { put("title", it) }
     text.details.toTextCriterionOrNull()?.let { put("details", it) }
     text.code.toTextCriterionOrNull()?.let { put("code", it) }

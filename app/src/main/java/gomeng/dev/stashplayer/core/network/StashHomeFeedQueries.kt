@@ -64,6 +64,56 @@ internal val HOME_FEED_GALLERIES_QUERY = """
     }
 """
 
+/** Paged feed scenes (a performer's profile feed): same fields as the Home window query, plus the total. */
+internal val FEED_SCENES_PAGE_QUERY = """
+    query FeedScenesPage(${'$'}perPage: Int!, ${'$'}page: Int!, ${'$'}sort: String!, ${'$'}sceneFilter: SceneFilterType) {
+      findScenes(filter: { per_page: ${'$'}perPage, page: ${'$'}page, sort: ${'$'}sort, direction: DESC }, scene_filter: ${'$'}sceneFilter) {
+        count
+        scenes {
+          id
+          title
+          date
+          created_at
+          resume_time
+          play_count
+          o_counter
+          rating100
+          studio { name }
+          files { ... on VideoFile { duration width height basename } }
+          paths { screenshot preview webp }
+          tags { id name }
+          $FEED_PERFORMER_FIELDS
+        }
+      }
+    }
+"""
+
+internal val FEED_GALLERIES_PAGE_QUERY = """
+    query FeedGalleriesPage(${'$'}perPage: Int!, ${'$'}page: Int!, ${'$'}sort: String!, ${'$'}galleryFilter: GalleryFilterType) {
+      findGalleries(filter: { per_page: ${'$'}perPage, page: ${'$'}page, sort: ${'$'}sort, direction: DESC }, gallery_filter: ${'$'}galleryFilter) {
+        count
+        galleries {
+          id
+          title
+          date
+          created_at
+          image_count
+          studio { name }
+          folder { path basename }
+          files { path basename }
+          paths { cover }
+          $FEED_PERFORMER_FIELDS
+        }
+      }
+    }
+"""
+
+/** One page of feed posts and the total they come from. */
+data class FeedPage<T>(val items: List<T>, val totalCount: Int)
+
+internal fun parseFeedPageCount(json: String, root: String): Int =
+    parseGraphQlData(json).optJSONObject(root)?.optInt("count") ?: 0
+
 /**
  * @param since ISO timestamp for [HomeFeedWindowField.CreatedAt], `yyyy-MM-dd` for [HomeFeedWindowField.Date].
  * @param extraFilter additional scene criteria (performers / tags / studios from the feed filter).

@@ -99,8 +99,7 @@ import gomeng.dev.stashplayer.core.network.passwordSessionStartupRefreshKey
 import gomeng.dev.stashplayer.core.network.shouldRefreshPasswordSessionOnStartup
 import gomeng.dev.stashplayer.core.player.PlaybackOrientationMode
 import gomeng.dev.stashplayer.core.ui.theme.LocalStashStyleTokens
-import gomeng.dev.stashplayer.core.ui.components.LocalCollapsingChromeVisible
-import gomeng.dev.stashplayer.core.ui.components.rememberCollapsingChromeState
+import gomeng.dev.stashplayer.core.ui.components.LocalStashBrowseTabs
 import gomeng.dev.stashplayer.core.model.StashGalleryBrowseMode
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScale
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScaleProvider
@@ -620,20 +619,15 @@ fun StashNavHost(
                     }
                     composable(TopLevelDestination.Explore.route) {
                         var segment by rememberSaveable { mutableStateOf(ExploreSegment.Videos) }
-                        val chrome = rememberCollapsingChromeState()
-                        Column(modifier = Modifier.fillMaxSize().nestedScroll(chrome.connection)) {
-                            AnimatedVisibility(visible = chrome.visible, enter = expandVertically(), exit = shrinkVertically()) {
-                                ExploreSegmentRow(
-                                    selected = segment,
-                                    onSelect = {
-                                        segment = it
-                                        chrome.show()
-                                    },
-                                    isFoldLikeLayout = isFoldLikeLayout,
-                                )
-                            }
-                            Box(modifier = Modifier.weight(1f)) {
-                              CompositionLocalProvider(LocalCollapsingChromeVisible provides chrome.visible) {
+                        val segmentTabs: @Composable () -> Unit = {
+                            ExploreSegmentRow(
+                                selected = segment,
+                                onSelect = { segment = it },
+                                isFoldLikeLayout = isFoldLikeLayout,
+                            )
+                        }
+                        Box(modifier = Modifier.fillMaxSize()) {
+                              CompositionLocalProvider(LocalStashBrowseTabs provides segmentTabs) {
                                 when (segment) {
                                     ExploreSegment.Videos -> ExploreRoute(
                                         isFoldLikeLayout = isFoldLikeLayout,
@@ -669,7 +663,6 @@ fun StashNavHost(
                                     )
                                 }
                               }
-                            }
                         }
                     }
                     composable(TopLevelDestination.ForYou.route) {
@@ -695,6 +688,8 @@ fun StashNavHost(
                         PerformerProfileRoute(
                             performerId = backStackEntry.arguments?.getString("performerId").orEmpty(),
                             isFoldLikeLayout = isFoldLikeLayout,
+                            onOpenLightbox = { request -> activeFeedLightbox = request },
+                            onOpenPerformer = { id -> navController.navigate(performerProfileRouteForPerformer(id)) },
                             onNavigateBack = {
                                 if (!navController.popBackStack()) navigateTopLevel(TopLevelDestination.Performers)
                             },

@@ -9,7 +9,6 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import gomeng.dev.stashplayer.core.ui.components.LocalCollapsingChromeVisible
 import gomeng.dev.stashplayer.core.ui.components.ScenePreviewController
 import gomeng.dev.stashplayer.core.ui.components.ScenePreviewSurface
 import gomeng.dev.stashplayer.core.ui.components.rememberScenePreviewController
@@ -130,6 +129,17 @@ import gomeng.dev.stashplayer.core.model.StashSavedFilterMode
 import gomeng.dev.stashplayer.core.model.StashServerSavedFilter
 import gomeng.dev.stashplayer.core.model.withServerSavedFilter
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
+import gomeng.dev.stashplayer.core.model.StashSelectedEntity
+import gomeng.dev.stashplayer.core.model.StashVideoFilterState
+import gomeng.dev.stashplayer.core.ui.components.StashBrowseHeaderScaffold
+import gomeng.dev.stashplayer.core.ui.components.StashBrowseLayout
+import gomeng.dev.stashplayer.core.ui.components.StashSelectionPill
+import gomeng.dev.stashplayer.core.ui.components.rememberStashCollapsingHeaderState
+import gomeng.dev.stashplayer.core.ui.discovery.StashSceneSelectionActions
+import gomeng.dev.stashplayer.core.ui.discovery.StashVideoFilterDraft
+import gomeng.dev.stashplayer.core.ui.discovery.StashVideoFilterScreen
+import gomeng.dev.stashplayer.core.ui.discovery.StashVideoFilterSectionKeys
+import gomeng.dev.stashplayer.core.ui.discovery.headerChips
 
 private val SEARCH_DEBOUNCE_MS = 500L
 
@@ -178,6 +188,7 @@ private const val EXPLORE_HOLD_PREVIEW_MS = 300L
 private fun Modifier.holdToPreview(
     sceneId: String,
     previewUrl: String?,
+    durationText: String?,
     preview: ScenePreviewController,
     scope: kotlinx.coroutines.CoroutineScope,
 ): Modifier = pointerInput(sceneId, previewUrl) {
@@ -185,7 +196,7 @@ private fun Modifier.holdToPreview(
         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
         val start = scope.launch {
             delay(EXPLORE_HOLD_PREVIEW_MS)
-            preview.play(sceneId, previewUrl)
+            preview.play(sceneId, previewUrl, durationText)
         }
         var previewing = false
         while (true) {
@@ -490,70 +501,17 @@ fun ExploreRoute(
         }
     }
 
-    StashDiscoveryFilterSheets(
-        openSheet = openSheet,
-        videoFilter = pageState.videoFilter,
-        recentFilters = recentExploreFilters,
-        savedFilters = savedVideoFilters,
-        savedFilterName = savedFilterName,
-        tagOptionsState = tagOptionsState,
-        onSavedFilterNameChange = { savedFilterName = it },
-        onApplyFilterAction = ::applyExploreFilterAction,
-        onOpenSheet = { target -> openSheet = openSheet.open(target) },
-        onDismiss = { openSheet = openSheet.dismiss() },
-        onSaveCurrentFilter = { name, filterToSave ->
-            scope.launch {
-                val saved = localRepository.saveVideoFilter(name, filterToSave)
-                savedFilterName = ""
-                applyExploreFilterAction(
-                    applyStashDiscoverySavedFilter(pageState.videoFilter, saved.appliedFilterState()),
-                    saveRecent = false,
-                )
-            }
-        },
-        onQuickSaveCurrentFilter = { name, filterToSave ->
-            scope.launch {
-                val saved = localRepository.saveVideoFilter(
-                    name = name,
-                    filterState = filterToSave,
-                    overwriteExisting = false,
-                )
-                applyExploreFilterAction(
-                    applyStashDiscoverySavedFilter(pageState.videoFilter, saved.appliedFilterState()),
-                    saveRecent = false,
-                )
-            }
-        },
-        onDeleteSavedFilter = { saved ->
-            scope.launch {
-                localRepository.deleteSavedVideoFilter(saved.id)
-                if (pageState.videoFilter.savedFilter?.id == saved.id) {
-                    applyExploreFilterAction(
-                        clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.SavedFilter),
-                        saveRecent = false,
-                    )
-                }
-            }
-        },
-        onTagQueryChange = { tagOptionsState = tagOptionsState.withTagOptionsQuery(it) },
-        onRetryTags = { loadTags(tagOptionsState.query) },
-        onToggleLocalFavoriteOnly = {
-            val updated = pageState.videoFilter.copy(localFavoriteOnly = !pageState.videoFilter.localFavoriteOnly)
-            applyExploreFilterAction(applyStashDiscoveryManualFilter(pageState.videoFilter, updated), saveRecent = false)
-        },
-        onClearSavedFilter = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.SavedFilter), saveRecent = false)
-        },
-        serverFilters = routeState.serverFilters,
-        onApplyServerFilter = { filter ->
-            applyExploreFilterAction(
-                applyStashDiscoveryManualFilter(pageState.videoFilter, pageState.videoFilter.withServerSavedFilter(filter)),
-                saveRecent = false,
-            )
-        },
-        searchPerformers = { query -> profile?.let { StashGraphQlClient(it).findPerformers(query = query) }.orEmpty() },
-        searchStudios = { query -> profile?.let { StashGraphQlClient(it).findStudios(query = query) }.orEmpty() },
-    )
+    fun applyFilterDraft(draft: StashVideoFilterDraft<StashExploreSortOption>) {
+        var next = pageState
+        if (draft.sort != next.sortOption) next = next.forSort(draft.sort)
+        if (draft.direction != next.sortDirection) next = next.withSortDirection(draft.direction)
+        draft.pageSize?.takeIf { it != next.pageSize }?.let { next = next.withPageSize(it) }
+        if (next != pageState) {
+            requestSerial += 1L
+            pageState = next
+        }
+        applyExploreFilterAction(applyStashDiscoveryManualFilter(pageState.videoFilter, draft.filter))
+    }
 
     ExploreContent(
         isFoldLikeLayout = isFoldLikeLayout,
@@ -564,83 +522,58 @@ fun ExploreRoute(
             requestSerial += 1L
             pageState = pageState.withQuery("")
         },
-        sortOptions = sortOptions,
-        pageSizeOptions = pageSizeOptions,
         pageState = pageState,
         exploreGridState = exploreGridState,
         exploreListState = exploreListState,
-        onSelectSort = { option ->
-            if (option != pageState.sortOption) {
-                requestSerial += 1L
-                pageState = pageState.forSort(option)
-            }
-        },
-        onToggleSortDirection = {
-            val nextDirection = if (pageState.sortDirection == StashSortDirection.Desc) {
-                StashSortDirection.Asc
-            } else {
-                StashSortDirection.Desc
-            }
-            requestSerial += 1L
-            pageState = pageState.withSortDirection(nextDirection)
-        },
-        onSelectPageSize = { pageSize ->
-            if (pageSize != pageState.pageSize) {
-                requestSerial += 1L
-                pageState = pageState.withPageSize(pageSize)
-            }
-        },
         isConfigured = profile != null,
         serverProfile = profile,
         favoriteSceneIds = favoriteSceneIds,
         watchLaterSceneIds = watchLaterSceneIds,
         queueSceneIds = queueSceneIds,
-        savedFilterCount = savedVideoFilters.size,
-        onOpenSavedFilters = { openSheet = openSheet.open(StashDiscoveryOpenSheet.SavedFilters) },
-        onOpenUnifiedFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.UnifiedFilterPanel) },
-        onOpenTagFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.Tags) },
-        onOpenPeopleFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.People) },
-        onClearPerformers = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.Performers), saveRecent = false)
+        onApplyVideoFilter = { updated ->
+            applyExploreFilterAction(applyStashDiscoveryManualFilter(pageState.videoFilter, updated), saveRecent = false)
         },
-        onClearStudios = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.Studios), saveRecent = false)
-        },
-        onOpenDateDurationPlaybackFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.DateDurationPlayback) },
-        onOpenRatingMediaFormatFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.RatingMedia) },
-        onOpenLocalLibraryFilter = { openSheet = openSheet.open(StashDiscoveryOpenSheet.LocalLibrary) },
-        onClearTags = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.Tags), saveRecent = false)
-        },
-        onClearDateRange = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.DateRange), saveRecent = false)
-        },
-        onClearDurationRange = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.DurationRange), saveRecent = false)
-        },
-        onClearOCounter = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.OCounter), saveRecent = false)
-        },
-        onClearPlaybackState = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.PlaybackState), saveRecent = false)
-        },
-        onClearRatingRange = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.RatingRange), saveRecent = false)
-        },
-        onClearMediaFormat = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.MediaFormat), saveRecent = false)
-        },
-        onClearLocalFavoriteOnly = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.LocalFavorite), saveRecent = false)
-        },
-        onClearSavedFilter = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.SavedFilter), saveRecent = false)
-        },
-        onClearRandomShuffle = {
-            applyExploreFilterAction(clearStashDiscoveryFilterSection(pageState.videoFilter, StashDiscoveryFilterSection.RandomShuffle), saveRecent = false)
-        },
-        onToggleRandomShuffle = {
-            applyExploreFilterAction(applyStashDiscoveryRandomShuffleAction(pageState.videoFilter))
+        filterScreen = { section, actions, onDismiss ->
+            StashVideoFilterScreen(
+                initial = StashVideoFilterDraft(
+                    sort = pageState.sortOption,
+                    direction = pageState.sortDirection,
+                    pageSize = pageState.pageSize,
+                    filter = pageState.videoFilter,
+                ),
+                sortOptions = sortOptions,
+                sortLabel = { it.label },
+                pageSizeOptions = pageSizeOptions,
+                searchTags = { query ->
+                    profile?.let { p -> StashGraphQlClient(p).findTags(query = query).map { StashSelectedEntity(it.id, it.name) } }.orEmpty()
+                },
+                searchPerformers = { query -> profile?.let { StashGraphQlClient(it).findPerformers(query = query) }.orEmpty() },
+                searchStudios = { query -> profile?.let { StashGraphQlClient(it).findStudios(query = query) }.orEmpty() },
+                countResults = { draft ->
+                    val activeProfile = profile
+                    if (activeProfile == null || draft.filter.localFavoriteOnly) {
+                        null
+                    } else {
+                        StashGraphQlClient(activeProfile).findSceneCardsPage(
+                            perPage = 1,
+                            query = pageState.query.ifBlank { null },
+                            sort = draft.sort.sort,
+                            direction = draft.direction,
+                            videoFilter = draft.filter,
+                        ).totalCount
+                    }
+                },
+                onApply = ::applyFilterDraft,
+                onDismiss = onDismiss,
+                initialSection = section,
+                localSavedFilters = savedVideoFilters,
+                serverFilters = routeState.serverFilters,
+                onSaveFilter = { name, filterToSave ->
+                    scope.launch { localRepository.saveVideoFilter(name, filterToSave) }
+                },
+                onDeleteSavedFilter = { saved -> scope.launch { localRepository.deleteSavedVideoFilter(saved.id) } },
+                actions = actions,
+            )
         },
         onToggleFavorite = { scene ->
             val decision = buildStashDiscoveryFavoriteToggleDecision(scene.id, favoriteSceneIds)
@@ -735,40 +668,16 @@ private fun ExploreContent(
     inputText: String,
     onInputTextChange: (String) -> Unit,
     onClearInput: () -> Unit,
-    sortOptions: List<StashExploreSortOption>,
-    pageSizeOptions: List<Int>,
     pageState: StashExplorePageState,
     exploreGridState: LazyGridState,
     exploreListState: LazyListState,
-    onSelectSort: (StashExploreSortOption) -> Unit,
-    onToggleSortDirection: () -> Unit,
-    onSelectPageSize: (Int) -> Unit,
     isConfigured: Boolean,
     serverProfile: StashServerProfile?,
     favoriteSceneIds: Set<String>,
     watchLaterSceneIds: Set<String>,
     queueSceneIds: Set<String>,
-    savedFilterCount: Int,
-    onOpenSavedFilters: () -> Unit,
-    onOpenUnifiedFilter: () -> Unit,
-    onOpenTagFilter: () -> Unit,
-    onOpenPeopleFilter: () -> Unit,
-    onClearPerformers: () -> Unit,
-    onClearStudios: () -> Unit,
-    onOpenDateDurationPlaybackFilter: () -> Unit,
-    onOpenRatingMediaFormatFilter: () -> Unit,
-    onOpenLocalLibraryFilter: () -> Unit,
-    onClearTags: () -> Unit,
-    onClearDateRange: () -> Unit,
-    onClearDurationRange: () -> Unit,
-    onClearOCounter: () -> Unit,
-    onClearPlaybackState: () -> Unit,
-    onClearRatingRange: () -> Unit,
-    onClearMediaFormat: () -> Unit,
-    onClearLocalFavoriteOnly: () -> Unit,
-    onClearSavedFilter: () -> Unit,
-    onClearRandomShuffle: () -> Unit,
-    onToggleRandomShuffle: () -> Unit,
+    onApplyVideoFilter: (StashVideoFilterState) -> Unit,
+    filterScreen: @Composable (section: String?, actions: StashSceneSelectionActions, onDismiss: () -> Unit) -> Unit,
     onToggleFavorite: (SceneCardModel) -> Unit,
     onToggleWatchLater: (SceneCardModel) -> Unit,
     onAddToQueue: (SceneCardModel) -> Unit,
@@ -791,11 +700,6 @@ private fun ExploreContent(
     val thumbnailHeight = stashMediaGridThumbnailHeightDp(isFoldLikeLayout).dp
     val results = pageState.results.applyLocalFavoriteFilter(pageState.videoFilter.localFavoriteOnly, favoriteSceneIds)
     val totalCount = pageState.totalCount
-    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val showSupportingChrome = showExploreSupportingChrome(isLandscape)
-    // The header collapses while scrolling down (see CollapsingChromeState), so it is always "expanded".
-    val showControls = true
-    val chromeVisible = LocalCollapsingChromeVisible.current
     val visibleResultIds = results.map { it.id }
     var selectionState by remember { mutableStateOf(SceneSelectionState()) }
     val layoutContext = LocalContext.current
@@ -808,6 +712,13 @@ private fun ExploreContent(
     var deleteConfirmation by remember { mutableStateOf(SceneBulkDeleteConfirmationState.Hidden) }
     var previousVisibleResultIds by remember { mutableStateOf(visibleResultIds) }
     val scope = rememberCoroutineScope()
+    val headerState = rememberStashCollapsingHeaderState()
+    var filterScreenOpen by rememberSaveable { mutableStateOf(false) }
+    var filterScreenSection by rememberSaveable { mutableStateOf<String?>(null) }
+    fun openFilter(section: String?) {
+        filterScreenSection = section
+        filterScreenOpen = true
+    }
 
     LaunchedEffect(
         pageState.query,
@@ -822,6 +733,26 @@ private fun ExploreContent(
     LaunchedEffect(visibleResultIds) {
         selectionState = selectionState.clearIfResultIdentityChanged(previousVisibleResultIds, visibleResultIds)
         previousVisibleResultIds = visibleResultIds
+    }
+
+    if (filterScreenOpen) {
+        filterScreen(
+            filterScreenSection,
+            StashSceneSelectionActions(
+                selectionCount = selectionState.selectedCount,
+                visibleCount = results.size,
+                onSelectAll = { selectionState = selectionState.selectVisibleScenes(results.map { it.id }) },
+                onInvert = { selectionState = selectionState.invertVisibleSelection(results.map { it.id }) },
+                onClear = { selectionState = selectionState.clear() },
+                onPlay = {
+                    selectionState.toolbarPlaybackRequest(results)?.let { request ->
+                        selectionState = request.nextSelectionState
+                        onOpenScene(request.startSceneId, request.scenes, pageState.videoFilter.randomShuffle)
+                    }
+                },
+                onDelete = { deleteConfirmation = SceneBulkDeleteConfirmationState.open(selectionState.selectedCount) },
+            ),
+        ) { filterScreenOpen = false }
     }
 
     SceneBulkDeleteConfirmationDialog(
@@ -870,262 +801,168 @@ private fun ExploreContent(
             if (centeredId == null) return@collect
             delay(EXPLORE_AUTO_PREVIEW_DELAY_MS)
             val scene = results.firstOrNull { it.id == centeredId }
-            if (scene != null) preview.play(scene.id, scene.previewUrl) else preview.stop()
+            if (scene != null) preview.play(scene.id, scene.previewUrl, scene.durationText) else preview.stop()
         }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = StashSpacing.SectionGap),
-            verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
-        ) {
-        AnimatedVisibility(visible = chromeVisible, enter = expandVertically(), exit = shrinkVertically()) {
-        Column(verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap)) {
-        if (showControls) {
-        StashScenesToolbar(
-            horizontalPadding = horizontalPadding,
-            isConfigured = isConfigured,
+        StashBrowseHeaderScaffold(
+            state = headerState,
             searchValue = inputText,
             onSearchChange = onInputTextChange,
             onClearSearch = onClearInput,
-            sortValue = pageState.sortOption.label,
-            sortOptions = sortOptions,
-            sortOptionLabel = { it.label },
-            onSelectSort = onSelectSort,
-            sortDirectionLabel = directionLabel(pageState.sortDirection),
-            onToggleSortDirection = onToggleSortDirection,
-            pageSizeValue = stashString(R.string.auto_kr_0414, pageState.pageSize),
-            pageSizeOptions = pageSizeOptions,
-            onSelectPageSize = onSelectPageSize,
-            videoFilter = pageState.videoFilter,
-            savedFilterCount = savedFilterCount,
-            onOpenSavedFilters = onOpenSavedFilters,
-            onOpenFilter = onOpenUnifiedFilter,
-            onOpenTagFilter = onOpenTagFilter,
-            onOpenDateDurationPlaybackFilter = onOpenDateDurationPlaybackFilter,
-            onOpenRatingMediaFormatFilter = onOpenRatingMediaFormatFilter,
-            onOpenLocalLibraryFilter = onOpenLocalLibraryFilter,
-            onToggleRandomShuffle = onToggleRandomShuffle,
-            showFilterShortcuts = false,
-            viewMode = viewMode,
-            onToggleViewMode = {
+            filterCount = pageState.videoFilter.activeFilterCount,
+            onOpenFilter = { openFilter(null) },
+            layout = if (viewMode == StashScenesViewMode.Grid) StashBrowseLayout.Compact else StashBrowseLayout.Large,
+            onToggleLayout = {
                 val next = if (viewMode == StashScenesViewMode.Grid) StashScenesViewMode.List else StashScenesViewMode.Grid
                 preview.stop()
                 holdScope.launch { layoutRepository.setExploreLayout(next) }
             },
-            selectionCount = selectionState.selectedCount,
-            visibleCount = results.size,
-            onClearSelection = { selectionState = selectionState.clear() },
-            onSelectAll = { selectionState = selectionState.selectVisibleScenes(results.map { it.id }) },
-            onInvertSelection = { selectionState = selectionState.invertVisibleSelection(results.map { it.id }) },
-            onPlaySelection = {
-                selectionState.toolbarPlaybackRequest(results)?.let { request ->
-                    selectionState = request.nextSelectionState
-                    onOpenScene(request.startSceneId, request.scenes, pageState.videoFilter.randomShuffle)
-                }
-            },
-            onDeleteSelection = { deleteConfirmation = SceneBulkDeleteConfirmationState.open(selectionState.selectedCount) },
-        )
-        }
-
-        if (showControls && selectionState.selectedCount == 0) {
-            StashVideoFilterGroupRow(
-                horizontalPadding = horizontalPadding,
-                isConfigured = isConfigured,
-                videoFilter = pageState.videoFilter,
-                savedFilterCount = savedFilterCount,
-                onOpenSavedFilters = onOpenSavedFilters,
-                onOpenFilter = onOpenUnifiedFilter,
-                onOpenTagFilter = onOpenTagFilter,
-                onOpenDateDurationPlaybackFilter = onOpenDateDurationPlaybackFilter,
-                onOpenRatingMediaFormatFilter = onOpenRatingMediaFormatFilter,
-                onOpenLocalLibraryFilter = onOpenLocalLibraryFilter,
-                onOpenPeopleFilter = onOpenPeopleFilter,
-            )
-        }
-
-        if (showControls) StashActiveVideoFilterChipsRow(
-            videoFilter = pageState.videoFilter,
             horizontalPadding = horizontalPadding,
-            onTagClick = onOpenTagFilter,
-            onClearTags = onClearTags,
-            onPeopleClick = onOpenPeopleFilter,
-            onClearPerformers = onClearPerformers,
-            onClearStudios = onClearStudios,
-            onDateDurationPlaybackClick = onOpenDateDurationPlaybackFilter,
-            onClearDateRange = onClearDateRange,
-            onClearDurationRange = onClearDurationRange,
-            onClearOCounter = onClearOCounter,
-            onClearPlaybackState = onClearPlaybackState,
-            onRatingMediaFormatClick = onOpenRatingMediaFormatFilter,
-            onClearRatingRange = onClearRatingRange,
-            onClearMediaFormat = onClearMediaFormat,
-            onLocalLibraryClick = onOpenLocalLibraryFilter,
-            onClearLocalFavoriteOnly = onClearLocalFavoriteOnly,
-            onClearSavedFilter = onClearSavedFilter,
-            onRandomShuffleClick = onToggleRandomShuffle,
-            onClearRandomShuffle = onClearRandomShuffle,
-        )
-
-        if (showControls && pageState.hasExploreIntent) {
-            Column(
-                modifier = Modifier.padding(horizontal = horizontalPadding),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = stashString(
-                        R.string.auto_kr_0521,
-                        pageState.query.ifBlank { stashString(R.string.auto_kr_0520) },
-                        pageState.activeFilterCount,
-                        pageState.sortOption.label,
-                        directionSymbol(pageState.sortDirection),
-                        pageState.pageSize,
-                    ),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (results.isNotEmpty() || totalCount != null) {
-                    Text(
-                        text = stashDiscoveryResultCountLabel(totalCount, results.size),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+            enabled = isConfigured,
+            leadingControls = if (selectionState.selectedCount > 0) {
+                {
+                    StashSelectionPill(
+                        count = selectionState.selectedCount,
+                        onClick = { openFilter(StashVideoFilterSectionKeys.Actions) },
+                        onClear = { selectionState = selectionState.clear() },
                     )
                 }
-            }
-        }
-        }
-        }
-
-        when {
-            !isConfigured -> StashEmptyState(
-                state = StashEmptyStateModel(
-                    title = stashString(R.string.auto_kr_0415),
-                    message = stashString(R.string.explore_requires_server_message),
-                    primaryActionLabel = stashString(R.string.auto_kr_0270),
-                ),
-                modifier = Modifier.padding(horizontal = horizontalPadding),
-                onPrimaryAction = onOpenSettings,
-            )
-            !pageState.hasExploreIntent -> StashEmptyState(
-                state = StashEmptyStateModel(
-                    title = stashString(R.string.explore_empty_prompt_title),
-                    message = stashString(R.string.explore_empty_prompt_message),
-                ),
-                modifier = Modifier.padding(horizontal = horizontalPadding),
-            )
-            pageState.isLoading && results.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            pageState.error != null && results.isEmpty() -> StashErrorState(
-                state = StashErrorStateModel(
-                    title = stashString(R.string.explore_load_failed_title),
-                    message = pageState.error,
-                    secondaryActionLabel = stashString(R.string.auto_kr_0270),
-                ),
-                modifier = Modifier.padding(horizontal = horizontalPadding),
-                onRetry = onRetry,
-                onSecondaryAction = onOpenSettings,
-            )
-            else -> {
-                if (viewMode == StashScenesViewMode.Grid) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(columns),
-                        state = exploreGridState,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(start = horizontalPadding, end = horizontalPadding, bottom = bottomContentPadding),
-                        verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
-                        horizontalArrangement = Arrangement.spacedBy(gridGap),
-                    ) {
-                        items(results, key = { it.id }, contentType = { "scene" }) { scene ->
-                            SceneCard(
-                                scene = scene,
-                                // Compact layout: touch and hold plays the preview; selection starts from the toolbar.
-                                modifier = Modifier.holdToPreview(scene.id, scene.previewUrl, preview, holdScope),
-                                thumbnailHeight = thumbnailHeight,
-                                thumbnailModel = rememberStashThumbnailModel(scene.thumbnailUrl, serverProfile),
-                                isLocalFavorite = scene.id in favoriteSceneIds,
-                                isInWatchLater = scene.id in watchLaterSceneIds,
-                                isInQueue = scene.id in queueSceneIds,
-                                isSelected = scene.id in selectionState.selectedSceneIds,
-                                onToggleFavorite = { onToggleFavorite(scene) },
-                                onToggleWatchLater = { onToggleWatchLater(scene) },
-                                onAddToQueue = { onAddToQueue(scene) },
-                                showQuickActions = shouldShowSceneCardQuickActionsInMediaGrid(),
-                                onLongClick = if (selectionState.selectedCount > 0) {
-                                    { selectionState = selectionState.selectFromLongPress(scene.id) }
-                                } else {
-                                    null
-                                },
-                                thumbnailOverlay = { ScenePreviewSurface(preview, scene.id) },
-                                onClick = {
-                                    val tapResult = selectionState.handleCardTap(scene.id)
-                                    selectionState = tapResult.state
-                                    if (tapResult.shouldOpenScene) {
-                                        onOpenScene(scene.id, results, pageState.videoFilter.randomShuffle)
-                                    }
-                                },
-                            )
-                        }
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            ExploreFooter(
-                                pageState = pageState,
-                                onRetry = onRetry,
-                                onLoadMore = onLoadMore,
-                            )
-                        }
+            } else {
+                null
+            },
+            chips = pageState.videoFilter.headerChips(onOpenSection = ::openFilter, onApply = onApplyVideoFilter),
+            modifier = Modifier.fillMaxSize(),
+        ) { padding ->
+            val top = padding.calculateTopPadding()
+            when {
+                !isConfigured -> StashEmptyState(
+                    state = StashEmptyStateModel(
+                        title = stashString(R.string.auto_kr_0415),
+                        message = stashString(R.string.explore_requires_server_message),
+                        primaryActionLabel = stashString(R.string.auto_kr_0270),
+                    ),
+                    modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
+                    onPrimaryAction = onOpenSettings,
+                )
+                !pageState.hasExploreIntent -> StashEmptyState(
+                    state = StashEmptyStateModel(
+                        title = stashString(R.string.explore_empty_prompt_title),
+                        message = stashString(R.string.explore_empty_prompt_message),
+                    ),
+                    modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
+                )
+                pageState.isLoading && results.isEmpty() -> Box(Modifier.fillMaxSize().padding(top = top), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                pageState.error != null && results.isEmpty() -> StashErrorState(
+                    state = StashErrorStateModel(
+                        title = stashString(R.string.explore_load_failed_title),
+                        message = pageState.error,
+                        secondaryActionLabel = stashString(R.string.auto_kr_0270),
+                    ),
+                    modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
+                    onRetry = onRetry,
+                    onSecondaryAction = onOpenSettings,
+                )
+                viewMode == StashScenesViewMode.Grid -> LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
+                    state = exploreGridState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = horizontalPadding, end = horizontalPadding, top = top, bottom = bottomContentPadding),
+                    verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
+                    horizontalArrangement = Arrangement.spacedBy(gridGap),
+                ) {
+                    item(span = { GridItemSpan(maxLineSpan) }, contentType = "count") {
+                        ExploreResultCount(totalCount, results.size)
                     }
-                } else {
-                    LazyColumn(
-                        state = exploreListState,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(start = horizontalPadding, end = horizontalPadding, bottom = bottomContentPadding),
-                        verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
-                    ) {
-                        lazyItems(results, key = { it.id }, contentType = { "scene" }) { scene ->
-                            SceneCard(
-                                scene = scene,
-                                thumbnailHeight = largeThumbnailHeight,
-                                thumbnailOverlay = { ScenePreviewSurface(preview, scene.id) },
-                                thumbnailModel = rememberStashThumbnailModel(scene.thumbnailUrl, serverProfile),
-                                isLocalFavorite = scene.id in favoriteSceneIds,
-                                isInWatchLater = scene.id in watchLaterSceneIds,
-                                isInQueue = scene.id in queueSceneIds,
-                                isSelected = scene.id in selectionState.selectedSceneIds,
-                                onToggleFavorite = { onToggleFavorite(scene) },
-                                onToggleWatchLater = { onToggleWatchLater(scene) },
-                                onAddToQueue = { onAddToQueue(scene) },
-                                showQuickActions = shouldShowSceneCardQuickActionsInMediaGrid(),
-                                onLongClick = { selectionState = selectionState.selectFromLongPress(scene.id) },
-                                onClick = {
-                                    val tapResult = selectionState.handleCardTap(scene.id)
-                                    selectionState = tapResult.state
-                                    if (tapResult.shouldOpenScene) {
-                                        onOpenScene(scene.id, results, pageState.videoFilter.randomShuffle)
-                                    }
-                                },
-                            )
-                        }
-                        item {
-                            ExploreFooter(
-                                pageState = pageState,
-                                onRetry = onRetry,
-                                onLoadMore = onLoadMore,
-                            )
-                        }
+                    items(results, key = { it.id }, contentType = { "scene" }) { scene ->
+                        SceneCard(
+                            scene = scene,
+                            // Compact layout: touch and hold plays the preview; selection starts from the filter screen.
+                            modifier = Modifier.holdToPreview(scene.id, scene.previewUrl, scene.durationText, preview, holdScope),
+                            thumbnailHeight = thumbnailHeight,
+                            thumbnailModel = rememberStashThumbnailModel(scene.thumbnailUrl, serverProfile),
+                            isLocalFavorite = scene.id in favoriteSceneIds,
+                            isInWatchLater = scene.id in watchLaterSceneIds,
+                            isInQueue = scene.id in queueSceneIds,
+                            isSelected = scene.id in selectionState.selectedSceneIds,
+                            onToggleFavorite = { onToggleFavorite(scene) },
+                            onToggleWatchLater = { onToggleWatchLater(scene) },
+                            onAddToQueue = { onAddToQueue(scene) },
+                            showQuickActions = shouldShowSceneCardQuickActionsInMediaGrid(),
+                            onLongClick = if (selectionState.selectedCount > 0) {
+                                { selectionState = selectionState.selectFromLongPress(scene.id) }
+                            } else {
+                                null
+                            },
+                            thumbnailOverlay = { ScenePreviewSurface(preview, scene.id) },
+                            onClick = {
+                                val tapResult = selectionState.handleCardTap(scene.id)
+                                selectionState = tapResult.state
+                                if (tapResult.shouldOpenScene) {
+                                    onOpenScene(scene.id, results, pageState.videoFilter.randomShuffle)
+                                }
+                            },
+                        )
+                    }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        ExploreFooter(pageState = pageState, onRetry = onRetry, onLoadMore = onLoadMore)
+                    }
+                }
+                else -> LazyColumn(
+                    state = exploreListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = horizontalPadding, end = horizontalPadding, top = top, bottom = bottomContentPadding),
+                    verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
+                ) {
+                    item(contentType = "count") { ExploreResultCount(totalCount, results.size) }
+                    lazyItems(results, key = { it.id }, contentType = { "scene" }) { scene ->
+                        SceneCard(
+                            scene = scene,
+                            thumbnailHeight = largeThumbnailHeight,
+                            thumbnailOverlay = { ScenePreviewSurface(preview, scene.id) },
+                            thumbnailModel = rememberStashThumbnailModel(scene.thumbnailUrl, serverProfile),
+                            isLocalFavorite = scene.id in favoriteSceneIds,
+                            isInWatchLater = scene.id in watchLaterSceneIds,
+                            isInQueue = scene.id in queueSceneIds,
+                            isSelected = scene.id in selectionState.selectedSceneIds,
+                            onToggleFavorite = { onToggleFavorite(scene) },
+                            onToggleWatchLater = { onToggleWatchLater(scene) },
+                            onAddToQueue = { onAddToQueue(scene) },
+                            showQuickActions = shouldShowSceneCardQuickActionsInMediaGrid(),
+                            onLongClick = { selectionState = selectionState.selectFromLongPress(scene.id) },
+                            onClick = {
+                                val tapResult = selectionState.handleCardTap(scene.id)
+                                selectionState = tapResult.state
+                                if (tapResult.shouldOpenScene) {
+                                    onOpenScene(scene.id, results, pageState.videoFilter.randomShuffle)
+                                }
+                            },
+                        )
+                    }
+                    item {
+                        ExploreFooter(pageState = pageState, onRetry = onRetry, onLoadMore = onLoadMore)
                     }
                 }
             }
-        }
         }
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
+}
+
+@Composable
+private fun ExploreResultCount(totalCount: Int?, loadedCount: Int) {
+    if (totalCount == null && loadedCount == 0) return
+    Text(
+        text = stashDiscoveryResultCountLabel(totalCount, loadedCount),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable

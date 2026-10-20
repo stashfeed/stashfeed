@@ -89,3 +89,13 @@ private fun Any?.toBooleanOrSelf(): Any? = when (this) {
 fun StashVideoFilterState.withServerSavedFilter(filter: StashServerSavedFilter): StashVideoFilterState = copy(
     savedFilter = StashSavedFilterRef(id = "stash:${filter.id}", name = filter.name, criteria = filter.criteria),
 )
+
+/** Applies a Stash saved filter to the gallery filter. */
+fun StashGalleryFilterState.withServerSavedFilter(filter: StashServerSavedFilter): StashGalleryFilterState = copy(
+    savedFilter = StashSavedFilterRef(id = "stash:${filter.id}", name = filter.name, criteria = filter.criteria),
+)
+
+/** Applies a Stash saved filter to the image filter. */
+fun StashImageFilterState.withServerSavedFilter(filter: StashServerSavedFilter): StashImageFilterState = copy(
+    savedFilter = StashSavedFilterRef(id = "stash:${filter.id}", name = filter.name, criteria = filter.criteria),
+)

@@ -211,7 +211,7 @@ fun StashRatingMediaFormatFilterSheet(
 }
 
 @Composable
-private fun RatingFilterSliderPair(
+internal fun RatingFilterSliderPair(
     selection: StashRatingFilterSliderSelection,
     onMinStepChange: (Int) -> Unit,
     onMaxStepChange: (Int) -> Unit,

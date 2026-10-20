@@ -27,6 +27,8 @@ class StashPlayerController(
     context: Context,
     requestHeaders: Map<String, String> = emptyMap(),
     private val preloadPolicy: StashPlayerPreloadPolicy = stashPlayerPreloadPolicy(),
+    /** False streams straight from the server (short preview clips), bypassing the shared media cache. */
+    useCache: Boolean = true,
 ) {
     private val appContext = context.applicationContext
     private val httpDataSourceFactory = DefaultHttpDataSource.Factory()
@@ -50,7 +52,7 @@ class StashPlayerController(
 
     val player: ExoPlayer = ExoPlayer.Builder(appContext)
         .setLoadControl(loadControl)
-        .setMediaSourceFactory(DefaultMediaSourceFactory(cacheDataSourceFactory))
+        .setMediaSourceFactory(DefaultMediaSourceFactory(if (useCache) cacheDataSourceFactory else httpDataSourceFactory))
         .build()
 
     var lastError: PlaybackException? = null
@@ -80,6 +82,9 @@ class StashPlayerController(
         playWhenReady: Boolean = true,
         requestHeaders: Map<String, String> = emptyMap(),
         captionTracks: List<StashCaptionTrack> = emptyList(),
+        /** Plays only this part of the media (preview loops cut from the full video). */
+        clipStartMs: Long? = null,
+        clipEndMs: Long? = null,
     ) {
         lastError = null
         resumePlaybackWhenReady = false
@@ -87,6 +92,16 @@ class StashPlayerController(
         val item = MediaItem.Builder()
             .setUri(uri)
             .setSubtitleConfigurations(captionTracks.mapNotNull { it.toSubtitleConfigurationOrNull() })
+            .apply {
+                if (clipStartMs != null || clipEndMs != null) {
+                    setClippingConfiguration(
+                        MediaItem.ClippingConfiguration.Builder()
+                            .setStartPositionMs(clipStartMs ?: 0L)
+                            .apply { clipEndMs?.let { setEndPositionMs(it) } }
+                            .build(),
+                    )
+                }
+            }
             .setMediaMetadata(
                 androidx.media3.common.MediaMetadata.Builder()
                     .setTitle(title)

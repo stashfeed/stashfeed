@@ -65,6 +65,42 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import gomeng.dev.stashplayer.R
+import androidx.compose.material3.Surface
+import androidx.compose.ui.platform.LocalConfiguration
+import gomeng.dev.stashplayer.core.model.FeedGallery
+import gomeng.dev.stashplayer.core.model.FeedScene
+import gomeng.dev.stashplayer.core.model.HomeFeedItem
+import gomeng.dev.stashplayer.core.model.StashGalleryFilterState
+import gomeng.dev.stashplayer.core.model.StashImageFilterState
+import gomeng.dev.stashplayer.core.model.StashSelectedEntity
+import gomeng.dev.stashplayer.core.model.StashSortDirection
+import gomeng.dev.stashplayer.core.model.clearStashImageFilterCategory
+import gomeng.dev.stashplayer.core.model.stashImageSortOptions
+import gomeng.dev.stashplayer.core.network.StashGraphQlClient
+import gomeng.dev.stashplayer.core.ui.components.StashBrowseFilterRow
+import gomeng.dev.stashplayer.core.ui.components.StashBrowseLayout
+import gomeng.dev.stashplayer.core.ui.components.StashHeaderChip
+import gomeng.dev.stashplayer.core.ui.discovery.StashVideoFilterDraft
+import gomeng.dev.stashplayer.core.ui.discovery.StashVideoFilterScreen
+import gomeng.dev.stashplayer.core.ui.discovery.headerChips
+import gomeng.dev.stashplayer.core.ui.theme.LocalStashStyleTokens
+import gomeng.dev.stashplayer.feature.feed.FeedLightboxRequest
+import gomeng.dev.stashplayer.feature.feed.GalleryPost
+import gomeng.dev.stashplayer.feature.feed.PostCard
+import gomeng.dev.stashplayer.feature.feed.ScenePost
+import gomeng.dev.stashplayer.feature.gallery.GalleryEntitySectionSpec
+import gomeng.dev.stashplayer.feature.gallery.GalleryFilterChipSpec
+import gomeng.dev.stashplayer.feature.gallery.GalleryFilterDraft
+import gomeng.dev.stashplayer.feature.gallery.GalleryLikeFilterScreen
+import gomeng.dev.stashplayer.feature.gallery.GalleryPhotoLargeCard
+import gomeng.dev.stashplayer.feature.gallery.GalleryPhotoTile
+import gomeng.dev.stashplayer.feature.gallery.ImageEntityFilterKind
+import gomeng.dev.stashplayer.feature.gallery.imageSectionKey
+import gomeng.dev.stashplayer.feature.gallery.searchLabel
+import gomeng.dev.stashplayer.feature.gallery.selectedFrom
+import gomeng.dev.stashplayer.feature.gallery.title
+import gomeng.dev.stashplayer.feature.gallery.withSelected
+import gomeng.dev.stashplayer.feature.shorts.ForYouRatingDialog
 import gomeng.dev.stashplayer.core.model.GalleryImageModel
 import gomeng.dev.stashplayer.core.model.PerformerDetailModel
 import gomeng.dev.stashplayer.core.model.PerformerFeedItem
@@ -98,6 +134,8 @@ fun PerformerProfileRoute(
     onOpenScene: (sceneId: String, scenes: List<SceneCardModel>, shuffle: Boolean) -> Unit,
     onOpenGallery: (String) -> Unit,
     onOpenPhoto: (index: Int, images: List<GalleryImageModel>) -> Unit,
+    onOpenPerformer: (String) -> Unit = {},
+    onOpenLightbox: (FeedLightboxRequest) -> Unit = {},
 ) {
     val context = LocalContext.current
     val settingsRepository = remember(context) { StashSettingsRepository(context) }
@@ -106,10 +144,33 @@ fun PerformerProfileRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val gridState = rememberLazyGridState()
+    val tokens = LocalStashStyleTokens.current
     val horizontalPadding = if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact
+    val isFeed = viewModel.tab == PerformerProfileTab.Feed
+    // Feed posts run edge to edge like on Home; everything else keeps the screen padding.
+    val itemPadding = if (isFeed) Modifier.padding(horizontal = horizontalPadding) else Modifier
     val feedSpan = if (isFoldLikeLayout) 6 else PROFILE_GRID_LANES
-    val sceneSpan = if (isFoldLikeLayout) 4 else 6
-    val photoSpan = if (isFoldLikeLayout) 3 else 4
+    val sceneLarge = viewModel.sceneLayout == StashBrowseLayout.Large
+    val photoLarge = viewModel.photoLayout == StashBrowseLayout.Large
+    val sceneSpan = when {
+        sceneLarge -> if (isFoldLikeLayout) 6 else PROFILE_GRID_LANES
+        isFoldLikeLayout -> 4
+        else -> 6
+    }
+    val photoSpan = when {
+        photoLarge -> if (isFoldLikeLayout) 6 else PROFILE_GRID_LANES
+        isFoldLikeLayout -> 3
+        else -> 4
+    }
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val largeSceneThumbnailHeight = ((screenWidthDp - horizontalPadding.value * 2) * 9f / 16f).dp
+    var ratingTarget by remember { mutableStateOf<SceneCardModel?>(null) }
+    var filterOpen by rememberSaveable { mutableStateOf(false) }
+    var filterSection by rememberSaveable { mutableStateOf<String?>(null) }
+    fun openFilter(section: String?) {
+        filterSection = section
+        filterOpen = true
+    }
 
     LaunchedEffect(profile, performerId) {
         profile?.let { viewModel.bind(it, performerId) }
@@ -138,23 +199,98 @@ fun PerformerProfileRoute(
         }
     }
 
+    ratingTarget?.let { target ->
+        ForYouRatingDialog(
+            scene = target,
+            onRate = { rating100 ->
+                ratingTarget = null
+                viewModel.rateScene(target, rating100)
+            },
+            onDismiss = { ratingTarget = null },
+        )
+    }
+
+    if (filterOpen) {
+        val client = profile?.let { StashGraphQlClient(it) }
+        when (viewModel.tab) {
+            PerformerProfileTab.Photos -> GalleryLikeFilterScreen(
+                initial = GalleryFilterDraft(viewModel.photoSort, viewModel.photoDirection, 0, viewModel.photoFilter),
+                sortOptions = stashImageSortOptions(),
+                pageSizeOptions = emptyList(),
+                emptyFilter = StashImageFilterState(),
+                entitySections = listOf(ImageEntityFilterKind.Tags, ImageEntityFilterKind.Studios, ImageEntityFilterKind.Galleries).map { kind ->
+                    GalleryEntitySectionSpec(
+                        key = kind.name,
+                        title = kind.title(),
+                        searchLabel = kind.searchLabel(),
+                        selected = { kind.selectedFrom(it) },
+                        withSelected = { filter, picked -> kind.withSelected(filter, picked) },
+                        search = { query ->
+                            when (kind) {
+                                ImageEntityFilterKind.Studios -> client?.findStudios(query = query).orEmpty()
+                                ImageEntityFilterKind.Galleries -> client?.findGalleryCardsPage(
+                                    perPage = 40,
+                                    query = query,
+                                    sort = "title",
+                                    direction = StashSortDirection.Asc,
+                                    galleryFilter = StashGalleryFilterState(performers = listOf(StashSelectedEntity(performerId, performerId))),
+                                )?.galleries?.map { StashSelectedEntity(it.id, it.title) }.orEmpty()
+                                else -> client?.findTags(query = query)?.map { StashSelectedEntity(it.id, it.name) }.orEmpty()
+                            }
+                        },
+                    )
+                },
+                rating = { it.ratingRange },
+                withRating = { filter, range -> filter.copy(ratingRange = range) },
+                chips = { filter -> filter.photoChips() },
+                localSaved = emptyList(),
+                serverFilters = emptyList(),
+                savedRefId = { null },
+                applyServer = { filter, _ -> filter },
+                clearSaved = { it },
+                onSaveFilter = { _, _ -> },
+                onDeleteSavedFilter = {},
+                countResults = viewModel::countPhotos,
+                onApply = viewModel::applyPhotoDraft,
+                onDismiss = { filterOpen = false },
+                initialSection = filterSection,
+                allowSaving = false,
+            )
+            else -> StashVideoFilterScreen(
+                initial = StashVideoFilterDraft(viewModel.sceneSort, viewModel.sceneDirection, null, viewModel.sceneFilter),
+                sortOptions = PerformerSceneSort.entries,
+                sortLabel = { stashString(it.labelRes) },
+                pageSizeOptions = null,
+                searchTags = { query -> client?.findTags(query = query)?.map { StashSelectedEntity(it.id, it.name) }.orEmpty() },
+                searchPerformers = null,
+                searchStudios = { query -> client?.findStudios(query = query).orEmpty() },
+                countResults = viewModel::countScenes,
+                onApply = viewModel::applySceneDraft,
+                onDismiss = { filterOpen = false },
+                initialSection = filterSection,
+                showRandom = false,
+                showLocal = false,
+            )
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(PROFILE_GRID_LANES),
             state = gridState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = horizontalPadding,
-                end = horizontalPadding,
+                start = if (isFeed) 0.dp else horizontalPadding,
+                end = if (isFeed) 0.dp else horizontalPadding,
                 bottom = StashSpacing.BottomContentPadding,
             ),
             horizontalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
-            verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
+            verticalArrangement = Arrangement.spacedBy(if (isFeed) tokens.feedPostGap else StashSpacing.CardGap),
         ) {
             val fullSpan: LazyGridItemSpanScope.() -> GridItemSpan = { GridItemSpan(maxLineSpan) }
 
             item(key = "top_bar", span = fullSpan) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = itemPadding, verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stashString(R.string.performer_back))
                     }
@@ -168,32 +304,36 @@ fun PerformerProfileRoute(
                 is PerformerDetailState.Failed -> item(key = "header_error", span = fullSpan) {
                     StashErrorState(
                         state = StashErrorStateModel(title = stashString(R.string.performer_load_failed), message = detail.message),
+                        modifier = itemPadding,
                         onRetry = viewModel::loadDetail,
                     )
                 }
                 PerformerDetailState.NotFound -> item(key = "header_missing", span = fullSpan) {
                     StashEmptyState(
                         state = StashEmptyStateModel(title = stashString(R.string.performer_not_found), message = ""),
+                        modifier = itemPadding,
                     )
                 }
                 is PerformerDetailState.Ready -> item(key = "header", span = fullSpan) {
-                    PerformerHeader(
-                        detail = detail.detail,
-                        serverProfile = profile,
-                        isUpdatingFollow = viewModel.isUpdatingFollow,
-                        onToggleFollow = {
-                            viewModel.toggleFollow { message ->
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(stashString(R.string.performer_follow_failed, message))
+                    Box(itemPadding) {
+                        PerformerHeader(
+                            detail = detail.detail,
+                            serverProfile = profile,
+                            isUpdatingFollow = viewModel.isUpdatingFollow,
+                            onToggleFollow = {
+                                viewModel.toggleFollow { message ->
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(stashString(R.string.performer_follow_failed, message))
+                                    }
                                 }
-                            }
-                        },
-                    )
+                            },
+                        )
+                    }
                 }
             }
 
             item(key = "tabs", span = fullSpan) {
-                TabRow(selectedTabIndex = viewModel.tab.ordinal) {
+                TabRow(selectedTabIndex = viewModel.tab.ordinal, modifier = itemPadding) {
                     PerformerProfileTab.entries.forEach { entry ->
                         Tab(
                             selected = viewModel.tab == entry,
@@ -214,18 +354,57 @@ fun PerformerProfileRoute(
 
             when (viewModel.tab) {
                 PerformerProfileTab.Feed -> {
-                    val feedScenes = feedItems.filterIsInstance<PerformerFeedItem.Scene>().map { it.scene }
-                    itemsIndexed(feedItems, key = { _, item -> item.key }, span = { _, _ -> GridItemSpan(feedSpan) }) { _, item ->
-                        PerformerFeedPost(
-                            item = item,
-                            serverProfile = profile,
-                            onClick = {
-                                when (item) {
-                                    is PerformerFeedItem.Scene -> onOpenScene(item.scene.id, feedScenes, false)
-                                    is PerformerFeedItem.Gallery -> onOpenGallery(item.gallery.id)
+                    val feedScenes = feedItems.filterIsInstance<PerformerFeedItem.Scene>().map { viewModel.sceneOverrides[it.scene.id] ?: it.scene }
+                    itemsIndexed(
+                        feedItems,
+                        key = { _, item -> item.key },
+                        span = { _, _ -> GridItemSpan(feedSpan) },
+                        contentType = { _, item -> if (item is PerformerFeedItem.Scene) "post" else "gallery" },
+                    ) { _, item ->
+                        PostCard(tokens) {
+                            when (item) {
+                                is PerformerFeedItem.Scene -> {
+                                    val scene = viewModel.sceneOverrides[item.scene.id] ?: item.scene
+                                    val feedScene = (item.feed ?: FeedScene(scene = scene, performers = emptyList(), createdAt = item.createdAt, date = item.date))
+                                        .copy(scene = scene)
+                                    ScenePost(
+                                        post = HomeFeedItem.Post(feedScene, isRepost = false),
+                                        serverProfile = profile,
+                                        tokens = tokens,
+                                        onOpen = { onOpenScene(scene.id, feedScenes, false) },
+                                        onOpenPerformer = { id -> if (id != performerId) onOpenPerformer(id) },
+                                        onRate = { ratingTarget = scene },
+                                        onAddO = { viewModel.addO(scene) },
+                                        onRemoveO = { viewModel.removeO(scene) },
+                                    )
                                 }
-                            },
-                        )
+                                is PerformerFeedItem.Gallery -> {
+                                    val feedGallery = item.feed ?: FeedGallery(gallery = item.gallery, performers = emptyList(), createdAt = item.createdAt)
+                                    val galleryId = item.gallery.id
+                                    GalleryPost(
+                                        post = HomeFeedItem.GalleryPost(feedGallery),
+                                        images = viewModel.galleryImages[galleryId],
+                                        serverProfile = profile,
+                                        tokens = tokens,
+                                        onNeedImages = { viewModel.galleryImages.ensure(galleryId) },
+                                        onNeedMoreImages = { viewModel.galleryImages.loadMore(galleryId) },
+                                        onOpenPhoto = { index ->
+                                            onOpenLightbox(
+                                                FeedLightboxRequest(
+                                                    title = item.gallery.title,
+                                                    startIndex = index,
+                                                    totalCount = item.gallery.imageCount ?: 0,
+                                                    images = { viewModel.galleryImages[galleryId]?.images.orEmpty() },
+                                                    onNeedMore = { viewModel.galleryImages.loadMore(galleryId) },
+                                                ),
+                                            )
+                                        },
+                                        onOpenGallery = { onOpenGallery(galleryId) },
+                                        onOpenPerformer = { id -> if (id != performerId) onOpenPerformer(id) },
+                                    )
+                                }
+                            }
+                        }
                     }
                     val feed = viewModel.feedState
                     when {
@@ -233,27 +412,45 @@ fun PerformerProfileRoute(
                             PagedFooter(isLoading = feed.isLoading, error = feed.error, onRetry = viewModel::retryFeed)
                         }
                         feed.hasLoadedOnce && feedItems.isEmpty() -> item(key = "feed_empty", span = fullSpan) {
-                            ProfileEmptyText(stashString(R.string.performer_feed_empty))
+                            Box(itemPadding) { ProfileEmptyText(stashString(R.string.performer_feed_empty)) }
                         }
                     }
                 }
 
                 PerformerProfileTab.Scenes -> {
                     item(key = "scene_controls", span = fullSpan) {
-                        SceneSortRow(
-                            selected = viewModel.sceneSort,
-                            canPlay = sceneState.items.isNotEmpty(),
-                            onSelect = viewModel::selectSceneSort,
-                            onPlayAll = {
-                                sceneState.items.firstOrNull()?.let { onOpenScene(it.id, sceneState.items, false) }
+                        StashBrowseFilterRow(
+                            filterCount = viewModel.sceneFilter.activeFilterCount,
+                            onOpenFilter = { openFilter(null) },
+                            layout = viewModel.sceneLayout,
+                            onToggleLayout = { viewModel.sceneLayout = if (sceneLarge) StashBrowseLayout.Compact else StashBrowseLayout.Large },
+                            horizontalPadding = 0.dp,
+                            enabled = profile != null,
+                            leadingControls = {
+                                PlayAllButton(enabled = sceneState.items.isNotEmpty()) {
+                                    sceneState.items.firstOrNull()?.let { onOpenScene(it.id, sceneState.items, false) }
+                                }
                             },
+                            chips = listOf(
+                                StashHeaderChip(
+                                    key = "sort",
+                                    label = stashString(viewModel.sceneSort.labelRes) + if (viewModel.sceneDirection == StashSortDirection.Asc) " ↑" else " ↓",
+                                    onClick = { openFilter(null) },
+                                    onClear = null,
+                                ),
+                            ) + viewModel.sceneFilter.headerChips(onOpenSection = ::openFilter, onApply = viewModel::clearSceneFilter),
                         )
                     }
-                    itemsIndexed(sceneState.items, key = { _, scene -> scene.id }, span = { _, _ -> GridItemSpan(sceneSpan) }) { _, scene ->
+                    itemsIndexed(
+                        sceneState.items,
+                        key = { _, scene -> scene.id },
+                        span = { _, _ -> GridItemSpan(sceneSpan) },
+                        contentType = { _, _ -> "scene" },
+                    ) { _, scene ->
                         SceneCard(
                             scene = scene,
                             thumbnailModel = rememberStashThumbnailModel(scene.thumbnailUrl, profile),
-                            thumbnailHeight = if (isFoldLikeLayout) 150.dp else 110.dp,
+                            thumbnailHeight = if (sceneLarge) largeSceneThumbnailHeight else if (isFoldLikeLayout) 150.dp else 110.dp,
                             showQuickActions = false,
                             onClick = { onOpenScene(scene.id, sceneState.items, false) },
                         )
@@ -269,18 +466,46 @@ fun PerformerProfileRoute(
                 }
 
                 PerformerProfileTab.Photos -> {
-                    itemsIndexed(photoState.items, key = { _, image -> image.id }, span = { _, _ -> GridItemSpan(photoSpan) }) { index, image ->
-                        val model = rememberStashThumbnailModel(image.thumbnailUrl ?: image.previewUrl, profile)
-                        AsyncImage(
-                            model = model,
-                            contentDescription = image.title,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable { onOpenPhoto(index, photoState.items) },
+                    item(key = "photo_controls", span = fullSpan) {
+                        StashBrowseFilterRow(
+                            filterCount = viewModel.photoFilter.activeFilterCount,
+                            onOpenFilter = { openFilter(null) },
+                            layout = viewModel.photoLayout,
+                            onToggleLayout = { viewModel.photoLayout = if (photoLarge) StashBrowseLayout.Compact else StashBrowseLayout.Large },
+                            horizontalPadding = 0.dp,
+                            enabled = profile != null,
+                            leadingControls = null,
+                            chips = listOf(
+                                StashHeaderChip(
+                                    key = "sort",
+                                    label = viewModel.photoSort.label + if (viewModel.photoDirection == StashSortDirection.Asc) " ↑" else " ↓",
+                                    onClick = { openFilter(null) },
+                                    onClear = null,
+                                ),
+                            ) + viewModel.photoFilter.photoChips().map { chip ->
+                                StashHeaderChip(
+                                    key = chip.key,
+                                    label = chip.label,
+                                    onClick = { openFilter(chip.sectionKey) },
+                                    onClear = { viewModel.clearPhotoFilter(chip.clear(viewModel.photoFilter)) },
+                                )
+                            },
                         )
+                    }
+                    itemsIndexed(
+                        photoState.items,
+                        key = { _, image -> image.id },
+                        span = { _, _ -> GridItemSpan(photoSpan) },
+                        contentType = { _, _ -> "photo" },
+                    ) { index, image ->
+                        val serverProfile = profile
+                        if (serverProfile != null) {
+                            if (photoLarge) {
+                                GalleryPhotoLargeCard(image = image, serverProfile = serverProfile, onClick = { onOpenPhoto(index, photoState.items) })
+                            } else {
+                                GalleryPhotoTile(image = image, serverProfile = serverProfile, onClick = { onOpenPhoto(index, photoState.items) })
+                            }
+                        }
                     }
                     pagedFooterItems(
                         key = "photos",
@@ -294,6 +519,34 @@ fun PerformerProfileRoute(
             }
         }
         SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+/** Active photo criteria (except the performer itself, which the tab always adds). */
+private fun StashImageFilterState.photoChips(): List<GalleryFilterChipSpec<StashImageFilterState>> =
+    activeFilterChips().map { chip ->
+        GalleryFilterChipSpec(chip.category.name, chip.label, chip.category.imageSectionKey()) {
+            clearStashImageFilterCategory(it, chip.category)
+        }
+    }
+
+@Composable
+private fun PlayAllButton(enabled: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(50),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.height(36.dp).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+            Text(stashString(R.string.performer_play_all), style = MaterialTheme.typography.labelLarge)
+        }
     }
 }
 
@@ -426,121 +679,3 @@ private fun PerformerStat(value: Int, label: String, modifier: Modifier = Modifi
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
-
-@Composable
-private fun SceneSortRow(
-    selected: PerformerSceneSort,
-    canPlay: Boolean,
-    onSelect: (PerformerSceneSort) -> Unit,
-    onPlayAll: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Button(onClick = onPlayAll, enabled = canPlay) {
-            Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-            Text(stashString(R.string.performer_play_all), modifier = Modifier.padding(start = 4.dp))
-        }
-        PerformerSceneSort.entries.forEach { sort ->
-            FilterChip(
-                selected = sort == selected,
-                onClick = { onSelect(sort) },
-                label = { Text(stashString(sort.labelRes)) },
-            )
-        }
-    }
-}
-
-/** A feed post: big thumbnail with a type badge, then title and when it was added. */
-@Composable
-private fun PerformerFeedPost(
-    item: PerformerFeedItem,
-    serverProfile: StashServerProfile?,
-    onClick: () -> Unit,
-) {
-    val (title, thumbnailUrl, badge, subtitle) = when (item) {
-        is PerformerFeedItem.Scene -> FeedPostText(
-            title = item.scene.title,
-            thumbnailUrl = item.scene.thumbnailUrl,
-            badge = item.scene.durationText.ifBlank { stashString(R.string.performer_feed_scene_badge) },
-            subtitle = listOfNotNull(
-                item.scene.studio.takeIf { it.isNotBlank() },
-                item.date,
-            ).joinToString(" · "),
-        )
-        is PerformerFeedItem.Gallery -> FeedPostText(
-            title = item.gallery.title,
-            thumbnailUrl = item.gallery.bestThumbnailUrl,
-            badge = stashString(R.string.performer_feed_gallery_badge, item.gallery.imageCount ?: 0),
-            subtitle = listOfNotNull(item.gallery.studio, item.gallery.date).joinToString(" · "),
-        )
-    }
-    val model = rememberStashThumbnailModel(thumbnailUrl, serverProfile)
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(StashRadii.Thumbnail))
-            .clickable(onClick = onClick),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(StashRadii.Thumbnail))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            if (model != null) {
-                AsyncImage(
-                    model = model,
-                    contentDescription = title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .background(Color.Black.copy(alpha = 0.62f), RoundedCornerShape(StashRadii.Pill))
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Icon(
-                    imageVector = if (item is PerformerFeedItem.Gallery) Icons.Outlined.PhotoLibrary else Icons.Outlined.PlayArrow,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(14.dp),
-                )
-                Text(badge, style = MaterialTheme.typography.labelSmall, color = Color.White)
-            }
-        }
-        Column(modifier = Modifier.padding(horizontal = 4.dp)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            val added = item.createdAt.take(10).takeIf { it.length == 10 }?.let { stashString(R.string.performer_feed_added, it) }
-            val line = listOfNotNull(subtitle.takeIf { it.isNotBlank() }, added).joinToString(" · ")
-            if (line.isNotBlank()) {
-                Text(
-                    line,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Box(Modifier.height(4.dp))
-    }
-}
-
-private data class FeedPostText(
-    val title: String,
-    val thumbnailUrl: String?,
-    val badge: String,
-    val subtitle: String,
-)

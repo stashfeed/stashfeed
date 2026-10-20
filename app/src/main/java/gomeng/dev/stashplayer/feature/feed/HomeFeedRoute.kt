@@ -1,5 +1,8 @@
 package gomeng.dev.stashplayer.feature.feed
 
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -146,7 +149,16 @@ fun HomeFeedRoute(
         val activeSettings = feedSettings ?: return@LaunchedEffect
         viewModel.bind(activeProfile, activeSettings)
     }
-    DisposableEffect(viewModel) { onDispose { viewModel.flushSeenNow() } }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(viewModel, lifecycleOwner) {
+        // Save seen posts when the app goes to the background too, not only when leaving Home.
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_STOP) viewModel.flushSeenNow() }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.flushSeenNow()
+        }
+    }
 
     // A post is "seen" once at least half of it stayed on screen for a second (only counted while hiding is on).
     val readyFeed = (viewModel.state as? HomeFeedState.Ready)?.feed
@@ -439,7 +451,7 @@ private fun CaughtUpDivider(seenCount: Int, expanded: Boolean, onToggle: () -> U
 
 /** Social Dark: flat, edge to edge with a hairline below. Material You: a rounded tonal card. */
 @Composable
-private fun PostCard(tokens: StashStyleTokens, content: @Composable () -> Unit) {
+internal fun PostCard(tokens: StashStyleTokens, content: @Composable () -> Unit) {
     val cardModifier = if (tokens.isSocial) {
         Modifier
     } else {
@@ -684,7 +696,7 @@ private fun ActionChip(
 }
 
 @Composable
-private fun ScenePost(
+internal fun ScenePost(
     post: HomeFeedItem.Post,
     serverProfile: StashServerProfile?,
     tokens: StashStyleTokens,
@@ -799,7 +811,7 @@ private fun formatStars(stars: Float): String = if (stars % 1f == 0f) stars.toIn
  * screen, the last slide opens the whole gallery. Photos load when the post first appears.
  */
 @Composable
-private fun GalleryPost(
+internal fun GalleryPost(
     post: HomeFeedItem.GalleryPost,
     images: FeedGalleryImages?,
     serverProfile: StashServerProfile?,

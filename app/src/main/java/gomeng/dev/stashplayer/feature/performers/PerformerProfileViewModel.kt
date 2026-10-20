@@ -19,6 +19,12 @@ import gomeng.dev.stashplayer.core.model.StashSortDirection
 import gomeng.dev.stashplayer.core.model.StashVideoFilterState
 import gomeng.dev.stashplayer.core.network.StashGraphQlClient
 import gomeng.dev.stashplayer.core.network.StashServerProfile
+import androidx.compose.runtime.mutableStateMapOf
+import gomeng.dev.stashplayer.core.model.stashImageSortOptions
+import gomeng.dev.stashplayer.core.ui.components.StashBrowseLayout
+import gomeng.dev.stashplayer.core.ui.discovery.StashVideoFilterDraft
+import gomeng.dev.stashplayer.feature.feed.FeedGalleryImageStore
+import gomeng.dev.stashplayer.feature.gallery.GalleryFilterDraft
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -47,6 +53,23 @@ internal class PerformerProfileViewModel : ViewModel() {
     var tab by mutableStateOf(PerformerProfileTab.Feed)
     var sceneSort by mutableStateOf(PerformerSceneSort.Recent)
         private set
+    var sceneDirection by mutableStateOf(StashSortDirection.Desc)
+        private set
+    /** Extra criteria on the Scenes tab; the performer itself is always added. */
+    var sceneFilter by mutableStateOf(StashVideoFilterState())
+        private set
+    var photoSort by mutableStateOf(stashImageSortOptions().first { it.id == "created_at" })
+        private set
+    var photoDirection by mutableStateOf(StashSortDirection.Desc)
+        private set
+    var photoFilter by mutableStateOf(StashImageFilterState())
+        private set
+    var sceneLayout by mutableStateOf(StashBrowseLayout.Compact)
+    var photoLayout by mutableStateOf(StashBrowseLayout.Compact)
+
+    /** Rating / O changes made from feed posts, shown until the feed reloads. */
+    val sceneOverrides = mutableStateMapOf<String, SceneCardModel>()
+    val galleryImages = FeedGalleryImageStore(viewModelScope) { profile }
     var detailState by mutableStateOf<PerformerDetailState>(PerformerDetailState.Loading)
         private set
     var feedState by mutableStateOf(PerformerFeedUiState())
@@ -72,8 +95,8 @@ internal class PerformerProfileViewModel : ViewModel() {
                 perPage = pageSize,
                 page = page,
                 sort = sceneSort.graphQlSort,
-                direction = StashSortDirection.Desc,
-                videoFilter = StashVideoFilterState(performers = listOf(performerEntity)),
+                direction = sceneDirection,
+                videoFilter = sceneFilterWithPerformer(sceneFilter),
             )
             LoadedPage(result.scenes, result.totalCount)
         },
@@ -87,9 +110,9 @@ internal class PerformerProfileViewModel : ViewModel() {
             val result = client().findImagesPage(
                 perPage = pageSize,
                 page = page,
-                sort = "created_at",
-                direction = StashSortDirection.Desc,
-                imageFilter = StashImageFilterState(performers = listOf(performerEntity)),
+                sort = photoSort.serverValue,
+                direction = photoDirection,
+                imageFilter = photoFilterWithPerformer(photoFilter),
             )
             LoadedPage(result.images, result.totalCount)
         },
@@ -116,10 +139,80 @@ internal class PerformerProfileViewModel : ViewModel() {
         }
     }
 
-    fun selectSceneSort(sort: PerformerSceneSort) {
-        if (sort == sceneSort) return
-        sceneSort = sort
+    private fun sceneFilterWithPerformer(filter: StashVideoFilterState) =
+        filter.copy(performers = (filter.performers + performerEntity).distinctBy { it.id })
+
+    private fun photoFilterWithPerformer(filter: StashImageFilterState) =
+        filter.copy(performers = (filter.performers + performerEntity).distinctBy { it.id })
+
+    fun applySceneDraft(draft: StashVideoFilterDraft<PerformerSceneSort>) {
+        if (draft.sort == sceneSort && draft.direction == sceneDirection && draft.filter == sceneFilter) return
+        sceneSort = draft.sort
+        sceneDirection = draft.direction
+        sceneFilter = draft.filter
         scenes.reset()
+    }
+
+    fun applyPhotoDraft(draft: GalleryFilterDraft<StashImageFilterState>) {
+        if (draft.sort == photoSort && draft.direction == photoDirection && draft.filter == photoFilter) return
+        photoSort = draft.sort
+        photoDirection = draft.direction
+        photoFilter = draft.filter
+        photos.reset()
+    }
+
+    fun clearSceneFilter(filter: StashVideoFilterState) {
+        sceneFilter = filter
+        scenes.reset()
+    }
+
+    fun clearPhotoFilter(filter: StashImageFilterState) {
+        photoFilter = filter
+        photos.reset()
+    }
+
+    suspend fun countScenes(draft: StashVideoFilterDraft<PerformerSceneSort>): Int? {
+        val activeProfile = profile ?: return null
+        return StashGraphQlClient(activeProfile).findSceneCardsPage(
+            perPage = 1,
+            sort = draft.sort.graphQlSort,
+            direction = draft.direction,
+            videoFilter = sceneFilterWithPerformer(draft.filter),
+        ).totalCount
+    }
+
+    suspend fun countPhotos(draft: GalleryFilterDraft<StashImageFilterState>): Int? {
+        val activeProfile = profile ?: return null
+        return StashGraphQlClient(activeProfile).findImagesPage(
+            perPage = 1,
+            sort = draft.sort.serverValue,
+            direction = draft.direction,
+            imageFilter = photoFilterWithPerformer(draft.filter),
+        ).totalCount
+    }
+
+    fun rateScene(scene: SceneCardModel, rating100: Int?) = updateScene(scene.copy(rating100 = rating100)) { client ->
+        client.updateSceneRating(scene.id, rating100)
+        null
+    }
+
+    fun addO(scene: SceneCardModel) = updateScene(scene.copy(oCounter = (scene.oCounter ?: 0) + 1)) { it.addO(scene.id) }
+
+    fun removeO(scene: SceneCardModel) {
+        if ((scene.oCounter ?: 0) <= 0) return
+        updateScene(scene.copy(oCounter = (scene.oCounter ?: 0) - 1)) { it.deleteO(scene.id) }
+    }
+
+    /** Shows [optimistic] right away; the server's O count (when returned) replaces it, a failure reverts it. */
+    private fun updateScene(optimistic: SceneCardModel, action: suspend (StashGraphQlClient) -> Int?) {
+        val activeProfile = profile ?: return
+        val previous = sceneOverrides[optimistic.id]
+        sceneOverrides[optimistic.id] = optimistic
+        viewModelScope.launch {
+            runCatching { action(StashGraphQlClient(activeProfile)) }
+                .onSuccess { count -> count?.let { sceneOverrides[optimistic.id] = optimistic.copy(oCounter = it) } }
+                .onFailure { if (previous != null) sceneOverrides[optimistic.id] = previous else sceneOverrides.remove(optimistic.id) }
+        }
     }
 
     fun toggleFollow(onFailure: (String) -> Unit) {
@@ -144,6 +237,8 @@ internal class PerformerProfileViewModel : ViewModel() {
 
     private fun resetFeed() {
         feedJob?.cancel()
+        sceneOverrides.clear()
+        galleryImages.clear()
         feedState = PerformerFeedUiState()
         loadMoreFeed()
     }
@@ -186,16 +281,14 @@ internal class PerformerProfileViewModel : ViewModel() {
         activeProfile: StashServerProfile,
         page: Int,
     ): PerformerFeedPage<PerformerFeedItem.Scene> {
-        val result = StashGraphQlClient(activeProfile).findSceneCardsPage(
+        val result = StashGraphQlClient(activeProfile).findFeedScenesPage(
             perPage = PROFILE_FEED_PAGE_SIZE,
             page = page,
-            sort = "created_at",
-            direction = StashSortDirection.Desc,
-            videoFilter = StashVideoFilterState(performers = listOf(performerEntity)),
+            sceneFilter = mapOf("performers" to mapOf("value" to listOf(performerId), "modifier" to "INCLUDES")),
         )
         return PerformerFeedPage(
-            items = result.scenes.map { scene ->
-                PerformerFeedItem.Scene(scene = scene, date = scene.date, createdAt = scene.createdAt.orEmpty())
+            items = result.items.map { feed ->
+                PerformerFeedItem.Scene(scene = feed.scene, date = feed.date, createdAt = feed.createdAt, feed = feed)
             },
             totalCount = result.totalCount,
         )
@@ -205,16 +298,14 @@ internal class PerformerProfileViewModel : ViewModel() {
         activeProfile: StashServerProfile,
         page: Int,
     ): PerformerFeedPage<PerformerFeedItem.Gallery> {
-        val result = StashGraphQlClient(activeProfile).findGalleryCardsPage(
+        val result = StashGraphQlClient(activeProfile).findFeedGalleriesPage(
             perPage = PROFILE_FEED_PAGE_SIZE,
             page = page,
-            sort = "created_at",
-            direction = StashSortDirection.Desc,
-            galleryFilter = StashGalleryFilterState(performers = listOf(performerEntity)),
+            galleryFilter = mapOf("performers" to mapOf("value" to listOf(performerId), "modifier" to "INCLUDES")),
         )
         return PerformerFeedPage(
-            items = result.galleries.map { gallery ->
-                PerformerFeedItem.Gallery(gallery = gallery, createdAt = gallery.createdAt.orEmpty())
+            items = result.items.map { feed ->
+                PerformerFeedItem.Gallery(gallery = feed.gallery, createdAt = feed.createdAt, feed = feed)
             },
             totalCount = result.totalCount,
         )

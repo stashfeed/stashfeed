@@ -29,6 +29,10 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -46,9 +50,6 @@ private data class HomeFeedSource(
     val windowStartDate: String,
 )
 
-/** Plugin page size for a gallery's photos in the feed. */
-private const val FEED_GALLERY_PAGE_SIZE = 60
-
 data class FeedGalleryImages(
     val images: List<GalleryImageModel> = emptyList(),
     val nextPage: Int = 1,
@@ -61,7 +62,8 @@ private const val SEEN_SAVE_DEBOUNCE_MS = 4_000L
 
 internal class HomeFeedViewModel : ViewModel() {
     /** Photos per gallery post, loaded when the post first scrolls into view. */
-    val galleryImages = mutableStateMapOf<String, FeedGalleryImages>()
+    private val galleryStore = FeedGalleryImageStore(viewModelScope) { profile }
+    val galleryImages get() = galleryStore.images
     var actionError by mutableStateOf<String?>(null)
 
     /** Post keys that were seen before the last load / refresh; only these move below the divider. */
@@ -74,6 +76,7 @@ internal class HomeFeedViewModel : ViewModel() {
     private var seenLoadedFor: StashServerProfile? = null
     private var seenDirty = false
     private var seenSaveJob: Job? = null
+    private val seenSaveMutex = Mutex()
 
     var state by mutableStateOf<HomeFeedState>(HomeFeedState.Loading)
         private set
@@ -173,65 +176,38 @@ internal class HomeFeedViewModel : ViewModel() {
         if (seenPosts.containsKey(key)) return
         seenPosts[key] = createdAt.take(10)
         seenDirty = true
-        seenSaveJob?.cancel()
+        // Throttle, don't debounce: while scrolling, every new post used to push the write back, so it often
+        // never happened before the app was closed. The pending write picks up everything marked until it runs.
+        if (seenSaveJob?.isActive == true) return
         seenSaveJob = viewModelScope.launch {
             delay(SEEN_SAVE_DEBOUNCE_MS)
             flushSeen()
         }
     }
 
-    /** Writes pending seen posts now (also called when leaving Home). */
+    /** Writes pending seen posts now (leaving Home, or the app going to the background). */
     fun flushSeenNow() {
         if (!seenDirty) return
         seenSaveJob?.cancel()
         seenSaveJob = viewModelScope.launch { flushSeen() }
     }
 
-    private suspend fun flushSeen() {
-        val activeProfile = profile ?: return
-        if (!seenDirty) return
+    private suspend fun flushSeen() = seenSaveMutex.withLock {
+        val activeProfile = profile ?: return@withLock
+        if (!seenDirty) return@withLock
         val pruned = pruneSeenFeedPosts(seenPosts, LocalDate.now())
         seenPosts.keys.retainAll(pruned.keys)
         seenDirty = false
-        runCatching { StashGraphQlClient(activeProfile).setUiSetting(UI_KEY_SEEN_FEED_POSTS, pruned) }
-            .onFailure { seenDirty = true }
-    }
-
-    fun ensureGalleryImages(galleryId: String) {
-        if (galleryImages[galleryId] == null) loadMoreGalleryImages(galleryId)
-    }
-
-    fun loadMoreGalleryImages(galleryId: String) {
-        val activeProfile = profile ?: return
-        val current = galleryImages[galleryId] ?: FeedGalleryImages()
-        if (current.isLoading || !current.hasMore) return
-        galleryImages[galleryId] = current.copy(isLoading = true)
-        viewModelScope.launch {
-            val result = runCatching {
-                StashGraphQlClient(activeProfile).findGalleryImagesPage(
-                    galleryId = galleryId,
-                    perPage = FEED_GALLERY_PAGE_SIZE,
-                    page = current.nextPage,
-                    sort = "path",
-                    direction = StashSortDirection.Asc,
-                )
-            }
-            val latest = galleryImages[galleryId] ?: current
-            galleryImages[galleryId] = result.fold(
-                onSuccess = { page ->
-                    val merged = (latest.images + page.images).distinctBy { it.id }
-                    latest.copy(
-                        images = merged,
-                        nextPage = current.nextPage + 1,
-                        hasMore = page.images.isNotEmpty() && merged.size < page.totalCount,
-                        isLoading = false,
-                    )
-                },
-                // Keep what loaded; a failed page just stops the carousel from growing.
-                onFailure = { latest.copy(isLoading = false, hasMore = false) },
-            )
+        // Finish the write even if a newer flush cancels this job; a half-sent write would just be lost.
+        val result = withContext(NonCancellable) {
+            runCatching { StashGraphQlClient(activeProfile).setUiSetting(UI_KEY_SEEN_FEED_POSTS, pruned) }
         }
+        if (result.isFailure) seenDirty = true
     }
+
+    fun ensureGalleryImages(galleryId: String) = galleryStore.ensure(galleryId)
+
+    fun loadMoreGalleryImages(galleryId: String) = galleryStore.loadMore(galleryId)
 
     fun rateScene(sceneId: String, rating100: Int?) {
         updateScene(sceneId) { it.copy(rating100 = rating100) }

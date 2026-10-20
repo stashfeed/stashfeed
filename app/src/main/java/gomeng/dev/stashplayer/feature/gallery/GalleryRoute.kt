@@ -1,9 +1,22 @@
 package gomeng.dev.stashplayer.feature.gallery
 
+import gomeng.dev.stashplayer.core.model.StashSavedFilterMode
+import gomeng.dev.stashplayer.core.model.StashServerSavedFilter
+import gomeng.dev.stashplayer.core.model.withServerSavedFilter
+import gomeng.dev.stashplayer.core.ui.components.StashBrowseHeaderScaffold
+import gomeng.dev.stashplayer.core.ui.components.StashBrowseLayout
+import gomeng.dev.stashplayer.core.ui.components.StashHeaderChip
+import gomeng.dev.stashplayer.core.ui.components.StashSelectionPill
+import gomeng.dev.stashplayer.core.ui.components.rememberStashCollapsingHeaderState
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import gomeng.dev.stashplayer.core.ui.components.LocalCollapsingChromeVisible
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -215,7 +228,7 @@ internal enum class ImageEntityFilterKind {
     Galleries,
 }
 
-private fun ImageEntityFilterKind.selectedFrom(filter: StashImageFilterState): List<StashSelectedEntity> = when (this) {
+internal fun ImageEntityFilterKind.selectedFrom(filter: StashImageFilterState): List<StashSelectedEntity> = when (this) {
     ImageEntityFilterKind.Tags -> filter.tags
     ImageEntityFilterKind.PerformerTags -> filter.performerTags
     ImageEntityFilterKind.Studios -> filter.studios
@@ -223,7 +236,7 @@ private fun ImageEntityFilterKind.selectedFrom(filter: StashImageFilterState): L
     ImageEntityFilterKind.Galleries -> filter.galleries
 }
 
-private fun ImageEntityFilterKind.withSelected(
+internal fun ImageEntityFilterKind.withSelected(
     filter: StashImageFilterState,
     selected: List<StashSelectedEntity>,
 ): StashImageFilterState {
@@ -237,7 +250,7 @@ private fun ImageEntityFilterKind.withSelected(
     }
 }
 
-private fun GalleryEntityFilterKind.selectedFrom(filter: StashGalleryFilterState): List<StashSelectedEntity> = when (this) {
+internal fun GalleryEntityFilterKind.selectedFrom(filter: StashGalleryFilterState): List<StashSelectedEntity> = when (this) {
     GalleryEntityFilterKind.Tags -> filter.tags
     GalleryEntityFilterKind.Studios -> filter.studios
     GalleryEntityFilterKind.Performers -> filter.performers
@@ -245,7 +258,7 @@ private fun GalleryEntityFilterKind.selectedFrom(filter: StashGalleryFilterState
     GalleryEntityFilterKind.ParentFolders -> filter.parentFolders
 }
 
-private fun GalleryEntityFilterKind.withSelected(
+internal fun GalleryEntityFilterKind.withSelected(
     filter: StashGalleryFilterState,
     selected: List<StashSelectedEntity>,
 ): StashGalleryFilterState {
@@ -269,7 +282,7 @@ private fun List<StashSelectedEntity>.toggleGalleryEntity(entity: StashSelectedE
 }
 
 @Composable
-private fun ImageEntityFilterKind.title(): String = when (this) {
+internal fun ImageEntityFilterKind.title(): String = when (this) {
     ImageEntityFilterKind.Tags -> stringResource(R.string.gallery_filter_sheet_tags_title)
     ImageEntityFilterKind.PerformerTags -> stringResource(R.string.gallery_filter_sheet_performer_tags_title)
     ImageEntityFilterKind.Studios -> stringResource(R.string.gallery_filter_sheet_studios_title)
@@ -278,7 +291,7 @@ private fun ImageEntityFilterKind.title(): String = when (this) {
 }
 
 @Composable
-private fun ImageEntityFilterKind.searchLabel(): String = when (this) {
+internal fun ImageEntityFilterKind.searchLabel(): String = when (this) {
     ImageEntityFilterKind.Tags -> stringResource(R.string.gallery_filter_sheet_tags_search)
     ImageEntityFilterKind.PerformerTags -> stringResource(R.string.gallery_filter_sheet_performer_tags_search)
     ImageEntityFilterKind.Studios -> stringResource(R.string.gallery_filter_sheet_studios_search)
@@ -296,7 +309,7 @@ private fun ImageEntityFilterKind.buttonLabel(count: Int): String = when (this) 
 }
 
 @Composable
-private fun GalleryEntityFilterKind.title(): String = when (this) {
+internal fun GalleryEntityFilterKind.title(): String = when (this) {
     GalleryEntityFilterKind.Tags -> stringResource(R.string.gallery_filter_sheet_tags_title)
     GalleryEntityFilterKind.Studios -> stringResource(R.string.gallery_filter_sheet_studios_title)
     GalleryEntityFilterKind.Performers -> stringResource(R.string.gallery_filter_sheet_performers_title)
@@ -305,7 +318,7 @@ private fun GalleryEntityFilterKind.title(): String = when (this) {
 }
 
 @Composable
-private fun GalleryEntityFilterKind.searchLabel(): String = when (this) {
+internal fun GalleryEntityFilterKind.searchLabel(): String = when (this) {
     GalleryEntityFilterKind.Tags -> stringResource(R.string.gallery_filter_sheet_tags_search)
     GalleryEntityFilterKind.Studios -> stringResource(R.string.gallery_filter_sheet_studios_search)
     GalleryEntityFilterKind.Performers -> stringResource(R.string.gallery_filter_sheet_performers_search)
@@ -369,6 +382,10 @@ internal class GalleryRouteStateViewModel : ViewModel() {
     var previousVisibleGalleryIds by mutableStateOf(emptyList<String>())
     var lastGalleryResetLoadKey by mutableStateOf<GalleryRouteResetLoadKey?>(null)
     var lastImageResetLoadKey by mutableStateOf<GalleryRouteResetLoadKey?>(null)
+    /** Filters saved in the Stash web UI, per list. */
+    var serverGalleryFilters by mutableStateOf<List<StashServerSavedFilter>>(emptyList())
+    var serverImageFilters by mutableStateOf<List<StashServerSavedFilter>>(emptyList())
+    var serverFiltersLoadedFor by mutableStateOf<Any?>(null)
 
     fun clearTransientLoading() {
         if (pageState.isLoading) pageState = pageState.copy(isLoading = false)
@@ -946,6 +963,181 @@ fun GalleryRoute(
         activeEntityFilter = null
     }
 
+    LaunchedEffect(profile) {
+        val activeProfile = profile ?: return@LaunchedEffect
+        if (routeState.serverFiltersLoadedFor == activeProfile) return@LaunchedEffect
+        val client = StashGraphQlClient(activeProfile)
+        runCatching { client.findServerSavedFilters(StashSavedFilterMode.Galleries) }.onSuccess { routeState.serverGalleryFilters = it }
+        runCatching { client.findServerSavedFilters(StashSavedFilterMode.Images) }.onSuccess { routeState.serverImageFilters = it }
+        routeState.serverFiltersLoadedFor = activeProfile
+    }
+
+    suspend fun searchEntities(kind: Any, query: String): List<StashSelectedEntity> {
+        val client = profile?.let { StashGraphQlClient(it) } ?: return emptyList()
+        val tags: suspend () -> List<StashSelectedEntity> = {
+            client.findTags(perPage = GALLERY_ENTITY_SELECTOR_PAGE_SIZE, query = query).map { StashSelectedEntity(it.id, it.name) }
+        }
+        return when (kind) {
+            GalleryEntityFilterKind.Tags, ImageEntityFilterKind.Tags, ImageEntityFilterKind.PerformerTags -> tags()
+            GalleryEntityFilterKind.Studios, ImageEntityFilterKind.Studios ->
+                client.findStudios(perPage = GALLERY_ENTITY_SELECTOR_PAGE_SIZE, query = query)
+            GalleryEntityFilterKind.Performers, ImageEntityFilterKind.Performers ->
+                client.findPerformers(perPage = GALLERY_ENTITY_SELECTOR_PAGE_SIZE, query = query)
+            GalleryEntityFilterKind.Scenes -> client.findSceneEntities(perPage = GALLERY_ENTITY_SELECTOR_PAGE_SIZE, query = query)
+            ImageEntityFilterKind.Galleries -> client.findGalleryCardsPage(
+                perPage = GALLERY_ENTITY_SELECTOR_PAGE_SIZE,
+                query = query,
+                sort = "title",
+                direction = StashSortDirection.Asc,
+            ).galleries.map { StashSelectedEntity(id = it.id, name = it.title) }
+            else -> emptyList()
+        }
+    }
+
+    fun applyGalleryDraft(draft: GalleryFilterDraft<StashGalleryFilterState>) {
+        var next = pageState
+        if (draft.sort != next.sortOption) next = next.forSort(draft.sort)
+        if (draft.direction != next.sortDirection) next = next.withSortDirection(draft.direction)
+        if (draft.pageSize != next.pageSize) next = next.withPageSize(draft.pageSize)
+        if (draft.reshuffle) next = next.withRandomSeed()
+        if (next != pageState) {
+            requestSerial += 1L
+            gallerySelectionState = gallerySelectionState.clear()
+            applyGalleryToolbarPageState(next)
+        }
+        if (draft.filter != pageState.galleryFilter) applyGalleryFilter(draft.filter)
+    }
+
+    fun applyImageDraft(draft: GalleryFilterDraft<StashImageFilterState>) {
+        var next = imagePageState
+        if (draft.sort != next.sortOption) next = next.forSort(draft.sort)
+        if (draft.direction != next.sortDirection) next = next.withSortDirection(draft.direction)
+        if (draft.pageSize != next.pageSize) next = next.withPageSize(draft.pageSize)
+        if (draft.reshuffle) next = next.withRandomSeed()
+        if (next != imagePageState) {
+            imageRequestSerial += 1L
+            applyImageToolbarPageState(next)
+        }
+        if (draft.filter != imagePageState.imageFilter) applyImageFilter(draft.filter)
+    }
+
+    val filterScreen: @Composable (String?, () -> Unit) -> Unit = { section, onDismiss ->
+        val client = profile?.let { StashGraphQlClient(it) }
+        if (browseMode == StashGalleryBrowseMode.Images) {
+            GalleryLikeFilterScreen(
+                initial = GalleryFilterDraft(imagePageState.sortOption, imagePageState.sortDirection, imagePageState.pageSize, imagePageState.imageFilter),
+                sortOptions = stashImageSortOptions(),
+                pageSizeOptions = defaultStashDiscoveryPageSizeOptions(),
+                emptyFilter = StashImageFilterState(),
+                entitySections = ImageEntityFilterKind.entries.map { kind ->
+                    GalleryEntitySectionSpec(
+                        key = kind.name,
+                        title = kind.title(),
+                        searchLabel = kind.searchLabel(),
+                        selected = { kind.selectedFrom(it) },
+                        withSelected = { filter, picked -> kind.withSelected(filter, picked) },
+                        search = { query -> searchEntities(kind, query) },
+                    )
+                },
+                rating = { it.ratingRange },
+                withRating = { filter, range -> filter.copy(ratingRange = range) },
+                chips = { filter ->
+                    filter.activeFilterChips().map { chip ->
+                        GalleryFilterChipSpec(chip.category.name, chip.label, chip.category.imageSectionKey()) {
+                            clearStashImageFilterCategory(it, chip.category)
+                        }
+                    }
+                },
+                localSaved = savedImageFilters.map { GallerySavedFilterOption(it.id, it.name, it.filterState) },
+                serverFilters = routeState.serverImageFilters,
+                savedRefId = { it.savedFilter?.id },
+                applyServer = { filter, server -> filter.withServerSavedFilter(server) },
+                clearSaved = { it.copy(savedFilter = null) },
+                onSaveFilter = { name, filter ->
+                    scope.launch { localLibraryRepository.saveImageFilter(name = name, filterState = filter, overwriteExisting = true) }
+                },
+                onDeleteSavedFilter = { id -> scope.launch { localLibraryRepository.deleteSavedImageFilter(id) } },
+                countResults = { draft ->
+                    client?.findImagesPage(
+                        perPage = 1,
+                        query = imagePageState.query.ifBlank { null },
+                        sort = draft.sort.serverValue,
+                        direction = draft.direction,
+                        imageFilter = draft.filter,
+                    )?.totalCount
+                },
+                onApply = ::applyImageDraft,
+                onDismiss = onDismiss,
+                initialSection = section,
+            )
+        } else {
+            GalleryLikeFilterScreen(
+                initial = GalleryFilterDraft(pageState.sortOption, pageState.sortDirection, pageState.pageSize, pageState.galleryFilter),
+                sortOptions = stashGallerySortOptions(),
+                pageSizeOptions = defaultStashDiscoveryPageSizeOptions(),
+                emptyFilter = StashGalleryFilterState(),
+                entitySections = GalleryEntityFilterKind.entries.map { kind ->
+                    GalleryEntitySectionSpec(
+                        key = kind.name,
+                        title = kind.title(),
+                        searchLabel = kind.searchLabel(),
+                        selected = { kind.selectedFrom(it) },
+                        withSelected = { filter, picked -> kind.withSelected(filter, picked) },
+                        search = { query -> searchEntities(kind, query) },
+                        allowTyped = kind == GalleryEntityFilterKind.ParentFolders,
+                    )
+                },
+                rating = { it.ratingRange },
+                withRating = { filter, range -> filter.copy(ratingRange = range) },
+                chips = { filter ->
+                    filter.activeFilterChips().map { chip ->
+                        GalleryFilterChipSpec(chip.category.name, chip.label, chip.category.gallerySectionKey()) {
+                            clearStashGalleryFilterCategory(it, chip.category)
+                        }
+                    }
+                },
+                localSaved = savedGalleryFilters.map { GallerySavedFilterOption(it.id, it.name, it.filterState) },
+                serverFilters = routeState.serverGalleryFilters,
+                savedRefId = { it.savedFilter?.id },
+                applyServer = { filter, server -> filter.withServerSavedFilter(server) },
+                clearSaved = { it.copy(savedFilter = null) },
+                onSaveFilter = { name, filter ->
+                    scope.launch { localLibraryRepository.saveGalleryFilter(name = name, filterState = filter, overwriteExisting = true) }
+                },
+                onDeleteSavedFilter = { id -> scope.launch { localLibraryRepository.deleteSavedGalleryFilter(id) } },
+                countResults = { draft ->
+                    client?.findGalleryCardsPage(
+                        perPage = 1,
+                        query = pageState.query.ifBlank { null },
+                        sort = draft.sort.serverValue,
+                        direction = draft.direction,
+                        galleryFilter = draft.filter,
+                    )?.totalCount
+                },
+                onApply = ::applyGalleryDraft,
+                onDismiss = onDismiss,
+                initialSection = section,
+                actions = GallerySelectionActions(
+                    selectionCount = gallerySelectionState.selectedCount,
+                    visibleCount = pageState.galleries.size,
+                    onSelectAll = { gallerySelectionState = gallerySelectionState.selectVisibleGalleries(visibleGalleryIds) },
+                    onInvert = { gallerySelectionState = gallerySelectionState.invertVisibleSelection(visibleGalleryIds) },
+                    onOpenSelection = {
+                        gallerySelectionState.selectedOpenRequest(pageState.galleries)?.let { request ->
+                            openGallerySelectionRequest(request.galleryId, request.nextSelectionState)
+                        }
+                    },
+                    onOpenRandom = {
+                        gallerySelectionState.randomOpenRequest(pageState.galleries, Random.nextInt())?.let { request ->
+                            openGallerySelectionRequest(request.galleryId, request.nextSelectionState)
+                        }
+                    },
+                    onClear = { gallerySelectionState = gallerySelectionState.clear() },
+                ),
+            )
+        }
+    }
+
     GalleryContent(
         isFoldLikeLayout = isFoldLikeLayout,
         browseMode = browseMode,
@@ -1114,6 +1306,7 @@ fun GalleryRoute(
             applyImageFilter(clearStashImageFilterCategory(imagePageState.imageFilter, category))
         },
         onOpenLinkedGallery = onOpenGallery,
+        filterScreen = filterScreen,
     )
 
     activeEntityFilter?.let { kind ->
@@ -2184,9 +2377,10 @@ private fun GalleryContent(
     onClearFilterCategory: (StashGalleryFilterCategory) -> Unit,
     onClearImageFilterCategory: (StashImageFilterCategory) -> Unit,
     onOpenLinkedGallery: (String) -> Unit,
+    filterScreen: @Composable (section: String?, onDismiss: () -> Unit) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val horizontalPadding = if (isFoldLikeLayout) 48.dp else 24.dp
+    val horizontalPadding = if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact
     val gridGap = StashSpacing.CardGap
     val bottomContentPadding = 96.dp
     val layoutPolicy = stashGalleryGridLayoutPolicy(pageState.displayMode, isFoldLikeLayout)
@@ -2201,189 +2395,81 @@ private fun GalleryContent(
     val toolbarPolicy = stashGalleryMediaToolbarPolicy(browseMode)
     val galleryGridState = rememberLazyGridState()
     val imageGridState = rememberLazyGridState()
+    val isImageMode = browseMode == StashGalleryBrowseMode.Images
+    val headerState = rememberStashCollapsingHeaderState()
+    var filterScreenOpen by rememberSaveable { mutableStateOf(false) }
+    var filterScreenSection by rememberSaveable { mutableStateOf<String?>(null) }
+    fun openFilter(section: String?) {
+        filterScreenSection = section
+        filterScreenOpen = true
+    }
+    if (filterScreenOpen) filterScreen(filterScreenSection) { filterScreenOpen = false }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(top = StashSpacing.SectionGap),
-        verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
-    ) {
-        val visibleCount = if (browseMode == StashGalleryBrowseMode.Images) {
-            images.size
+    val displayMode = if (isImageMode) imagePageState.displayMode else pageState.displayMode
+    val isLarge = displayMode == StashGalleryDisplayMode.List
+    val screenWidthDp = LocalConfiguration.current.screenWidthDp
+    val visibleCount = if (isImageMode) images.size else galleries.size
+    val totalCount = if (isImageMode) imagePageState.totalCount else pageState.totalCount
+    val chips = if (isImageMode) {
+        imagePageState.imageFilter.activeFilterChips().map { chip ->
+            StashHeaderChip(
+                key = chip.category.name,
+                label = chip.label,
+                onClick = { openFilter(chip.category.imageSectionKey()) },
+                onClear = { onClearImageFilterCategory(chip.category) },
+            )
+        }
+    } else {
+        pageState.galleryFilter.activeFilterChips().map { chip ->
+            StashHeaderChip(
+                key = chip.category.name,
+                label = chip.label,
+                onClick = { openFilter(chip.category.gallerySectionKey()) },
+                onClear = { onClearFilterCategory(chip.category) },
+            )
+        }
+    }
+
+    StashBrowseHeaderScaffold(
+        state = headerState,
+        searchValue = inputText,
+        onSearchChange = onInputTextChange,
+        onClearSearch = onClearInput,
+        filterCount = if (isImageMode) imagePageState.imageFilter.activeFilterCount else pageState.galleryFilter.activeFilterCount,
+        onOpenFilter = { openFilter(null) },
+        layout = if (isLarge) StashBrowseLayout.Large else StashBrowseLayout.Compact,
+        onToggleLayout = { onSelectDisplayMode(if (isLarge) StashGalleryDisplayMode.Grid else StashGalleryDisplayMode.List) },
+        horizontalPadding = horizontalPadding,
+        enabled = serverProfile != null,
+        leadingControls = if (!isImageMode && gallerySelectionState.selectedCount > 0) {
+            {
+                StashSelectionPill(
+                    count = gallerySelectionState.selectedCount,
+                    onClick = { openFilter(GALLERY_SECTION_ACTIONS) },
+                    onClear = onClearSelection,
+                )
+            }
         } else {
-            galleries.size
-        }
-        val totalCount = if (browseMode == StashGalleryBrowseMode.Images) imagePageState.totalCount else pageState.totalCount
-        AnimatedVisibility(visible = LocalCollapsingChromeVisible.current, enter = expandVertically(), exit = shrinkVertically()) {
-        Column(verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap)) {
-        // Inside Explore the segment tabs already name the screen, so the big title goes.
-        if (showBrowseModeSwitch) StashScreenHeader(
-            title = if (headerPolicy.showTitle) stringResource(R.string.gallery_screen_title) else "",
-            subtitle = if (headerPolicy.showSubtitle) "" else null,
-            modifier = Modifier.padding(horizontal = horizontalPadding),
-        )
-
-        if (showBrowseModeSwitch) Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = horizontalPadding),
-            horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap),
-        ) {
-            StashSecondaryButton(
-                text = stringResource(R.string.gallery_browse_mode_galleries),
-                selected = browseMode == StashGalleryBrowseMode.Galleries,
-                onClick = { onSelectBrowseMode(StashGalleryBrowseMode.Galleries) },
-            )
-            StashSecondaryButton(
-                text = stringResource(R.string.gallery_browse_mode_images),
-                selected = browseMode == StashGalleryBrowseMode.Images,
-                onClick = { onSelectBrowseMode(StashGalleryBrowseMode.Images) },
-            )
-        }
-
-        if (toolbarPolicy.isActive(StashGalleryMediaControl.Search)) {
-            StashDiscoverySearchInput(
-                value = inputText,
-                enabled = serverProfile != null,
-                onValueChange = onInputTextChange,
-                onClear = onClearInput,
-                modifier = Modifier.padding(horizontal = horizontalPadding),
-            )
-        }
-
-        if (toolbarPolicy.isActive(StashGalleryMediaControl.Sort)) {
-            val isImageMode = browseMode == StashGalleryBrowseMode.Images
-            StashGalleryToolbar(
-                horizontalPadding = horizontalPadding,
-                isConfigured = serverProfile != null,
-                sortOption = if (isImageMode) imagePageState.sortOption else pageState.sortOption,
-                sortOptions = if (isImageMode) stashImageSortOptions() else stashGallerySortOptions(),
-                sortDirection = if (isImageMode) imagePageState.sortDirection else pageState.sortDirection,
-                pageSize = if (isImageMode) imagePageState.pageSize else pageState.pageSize,
-                pageSizeOptions = defaultStashDiscoveryPageSizeOptions(),
-                displayMode = if (isImageMode) imagePageState.displayMode else pageState.displayMode,
-                displayModeOptions = if (isImageMode) stashGalleryImageDisplayModes() else stashGalleryDisplayModes(),
-                visibleCount = if (isImageMode) images.size else galleries.size,
-                selectionCount = if (isImageMode) 0 else gallerySelectionState.selectedCount,
-                onClearSelection = if (isImageMode) null else onClearSelection,
-                onSelectAll = if (isImageMode) null else onSelectVisibleGalleries,
-                onInvertSelection = if (isImageMode) null else onInvertVisibleSelection,
-                onOpenSelection = if (isImageMode) null else onOpenSelectedGallery,
-                onOpenFirst = if (isImageMode) null else onOpenFirstVisibleGallery,
-                onOpenRandom = if (isImageMode) null else onOpenRandomVisibleGallery,
-                onOpenRandomSelection = if (isImageMode) null else onOpenRandomVisibleGallery,
-                onSelectSort = onSelectSort,
-                onToggleSortDirection = onToggleSortDirection,
-                onRandomAction = onRandomAction,
-                onSelectPageSize = onSelectPageSize,
-                onSelectDisplayMode = onSelectDisplayMode,
-                showGalleryOperations = !isImageMode,
-            )
-
-            if (isImageMode) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = horizontalPadding),
-                    horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap),
-                ) {
-                    StashSecondaryButton(
-                        text = stashString(R.string.auto_kr_0344),
-                        enabled = serverProfile != null,
-                        onClick = onOpenSavedImageFilters,
-                    )
-                    ImageEntityFilterKind.entries.forEach { kind ->
-                        val count = kind.selectedFrom(imagePageState.imageFilter).size
-                        StashSecondaryButton(
-                            text = kind.buttonLabel(count),
-                            enabled = serverProfile != null,
-                            onClick = { onOpenImageEntityFilter(kind) },
-                        )
-                    }
-                }
-
-                if (imagePageState.imageFilter.activeFilterChips().isNotEmpty()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = horizontalPadding),
-                        horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap),
-                    ) {
-                        imagePageState.imageFilter.activeFilterChips().forEach { chip ->
-                            StashSecondaryButton(
-                                text = chip.label,
-                                enabled = serverProfile != null,
-                                onClick = { onClearImageFilterCategory(chip.category) },
-                            )
-                        }
-                    }
-                }
-            } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = horizontalPadding),
-                    horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap),
-                ) {
-                    StashSecondaryButton(
-                        text = stashString(R.string.auto_kr_0344),
-                        enabled = serverProfile != null,
-                        onClick = onOpenSavedFilters,
-                    )
-                    GalleryEntityFilterKind.entries.forEach { kind ->
-                        val count = kind.selectedFrom(pageState.galleryFilter).size
-                        StashSecondaryButton(
-                            text = kind.buttonLabel(count),
-                            enabled = serverProfile != null,
-                            onClick = { onOpenEntityFilter(kind) },
-                        )
-                    }
-                }
-
-                if (pageState.galleryFilter.activeFilterChips().isNotEmpty()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = horizontalPadding),
-                        horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap),
-                    ) {
-                        pageState.galleryFilter.activeFilterChips().forEach { chip ->
-                            StashSecondaryButton(
-                                text = chip.label,
-                                enabled = serverProfile != null,
-                                onClick = { onClearFilterCategory(chip.category) },
-                            )
-                        }
-                    }
-                }
+            null
+        },
+        chips = chips,
+        modifier = modifier.fillMaxSize(),
+    ) { padding ->
+        val top = padding.calculateTopPadding()
+        val countLabel: @Composable () -> Unit = {
+            if (visibleCount > 0 || totalCount != null) {
+                Text(
+                    text = stringResource(
+                        if (isImageMode) R.string.gallery_global_images_result_count_label else R.string.gallery_result_count_label,
+                        visibleCount,
+                        totalCount ?: visibleCount,
+                    ),
+                    modifier = Modifier.padding(bottom = 4.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
-
-        if (visibleCount > 0 || totalCount != null) {
-            Text(
-                text = stringResource(
-                    if (browseMode == StashGalleryBrowseMode.Images) {
-                        R.string.gallery_global_images_result_count_label
-                    } else {
-                        R.string.gallery_result_count_label
-                    },
-                    visibleCount,
-                    totalCount ?: visibleCount,
-                ),
-                modifier = Modifier.padding(horizontal = horizontalPadding),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        }
-        }
-
         when {
             serverProfile == null -> StashEmptyState(
                 state = StashEmptyStateModel(
@@ -2391,78 +2477,81 @@ private fun GalleryContent(
                     message = stringResource(R.string.gallery_requires_server_message),
                     primaryActionLabel = stringResource(R.string.auto_kr_0270),
                 ),
-                modifier = Modifier.padding(horizontal = horizontalPadding),
+                modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
                 onPrimaryAction = onOpenSettings,
             )
 
-            browseMode == StashGalleryBrowseMode.Images && imagePageState.isLoading && visibleCount == 0 -> Box(
-                modifier = Modifier.fillMaxSize(),
+            isImageMode && imagePageState.isLoading && visibleCount == 0 -> Box(
+                modifier = Modifier.fillMaxSize().padding(top = top),
                 contentAlignment = Alignment.Center,
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap),
-                ) {
-                    CircularProgressIndicator()
-                    Text(
-                        text = stringResource(R.string.gallery_global_images_loading_label),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                CircularProgressIndicator()
             }
 
-            browseMode == StashGalleryBrowseMode.Images && imagePageState.error != null && visibleCount == 0 -> StashErrorState(
+            isImageMode && imagePageState.error != null && visibleCount == 0 -> StashErrorState(
                 state = StashErrorStateModel(
                     title = stringResource(R.string.gallery_global_images_load_failed_title),
                     message = imagePageState.error,
                     secondaryActionLabel = stringResource(R.string.auto_kr_0270),
                 ),
-                modifier = Modifier.padding(horizontal = horizontalPadding),
+                modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
                 onRetry = onRetryImages,
                 onSecondaryAction = onOpenSettings,
             )
 
-            browseMode == StashGalleryBrowseMode.Images && visibleCount == 0 -> StashEmptyState(
+            isImageMode && visibleCount == 0 -> StashEmptyState(
                 state = StashEmptyStateModel(
                     title = stringResource(R.string.gallery_global_images_no_results_title),
                     message = stringResource(R.string.gallery_global_images_no_results_message),
                 ),
-                modifier = Modifier.padding(horizontal = horizontalPadding),
+                modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
             )
 
-            browseMode == StashGalleryBrowseMode.Images -> LazyVerticalGrid(
-                columns = GridCells.Fixed(imageColumns),
-                state = imageGridState,
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(
-                    start = horizontalPadding,
-                    end = horizontalPadding,
-                    bottom = bottomContentPadding,
-                ),
-                verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
-                horizontalArrangement = Arrangement.spacedBy(gridGap),
-            ) {
-                itemsIndexed(images, key = { _, image -> image.id }) { index, image ->
-                    GalleryPhotoCard(
-                        image = image,
-                        serverProfile = serverProfile,
-                        thumbnailHeight = imageThumbnailHeight,
-                        onOpenLinkedGallery = onOpenLinkedGallery,
-                        onClick = { onOpenImage(index, images) },
-                    )
-                }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    GalleryGlobalImageFooter(
-                        pageState = imagePageState,
-                        onRetry = onRetryImages,
-                        onLoadMore = onLoadMoreImages,
-                    )
+            isImageMode -> {
+                val photoGap = if (isLarge) StashSpacing.CardGap else 3.dp
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(if (isLarge) 1 else if (isFoldLikeLayout) 4 else 3),
+                    state = imageGridState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = if (isLarge) horizontalPadding else 2.dp,
+                        end = if (isLarge) horizontalPadding else 2.dp,
+                        top = top,
+                        bottom = bottomContentPadding,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(photoGap),
+                    horizontalArrangement = Arrangement.spacedBy(photoGap),
+                ) {
+                    item(span = { GridItemSpan(maxLineSpan) }, contentType = "count") {
+                        Box(Modifier.padding(horizontal = if (isLarge) 0.dp else horizontalPadding - 2.dp)) { countLabel() }
+                    }
+                    itemsIndexed(images, key = { _, image -> image.id }, contentType = { _, _ -> "photo" }) { index, image ->
+                        if (isLarge) {
+                            GalleryPhotoLargeCard(
+                                image = image,
+                                serverProfile = serverProfile,
+                                onClick = { onOpenImage(index, images) },
+                            )
+                        } else {
+                            GalleryPhotoTile(
+                                image = image,
+                                serverProfile = serverProfile,
+                                onClick = { onOpenImage(index, images) },
+                            )
+                        }
+                    }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        GalleryGlobalImageFooter(
+                            pageState = imagePageState,
+                            onRetry = onRetryImages,
+                            onLoadMore = onLoadMoreImages,
+                        )
+                    }
                 }
             }
 
             pageState.isLoading && galleries.isEmpty() -> Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().padding(top = top),
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator()
@@ -2474,7 +2563,7 @@ private fun GalleryContent(
                     message = pageState.error,
                     secondaryActionLabel = stringResource(R.string.auto_kr_0270),
                 ),
-                modifier = Modifier.padding(horizontal = horizontalPadding),
+                modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
                 onRetry = onRetry,
                 onSecondaryAction = onOpenSettings,
             )
@@ -2484,40 +2573,121 @@ private fun GalleryContent(
                     title = stringResource(R.string.gallery_no_results_title),
                     message = stringResource(R.string.gallery_no_results_message),
                 ),
-                modifier = Modifier.padding(horizontal = horizontalPadding),
+                modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
             )
 
-            else -> LazyVerticalGrid(
-                columns = GridCells.Fixed(columns),
-                state = galleryGridState,
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(
-                    start = horizontalPadding,
-                    end = horizontalPadding,
-                    bottom = bottomContentPadding,
-                ),
-                verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
-                horizontalArrangement = Arrangement.spacedBy(gridGap),
-            ) {
-                items(galleries, key = { it.id }) { gallery ->
-                    GalleryCard(
-                        gallery = gallery,
-                        serverProfile = serverProfile,
-                        thumbnailHeight = thumbnailHeight,
-                        displayMode = pageState.displayMode,
-                        isSelected = gallery.id in gallerySelectionState.selectedGalleryIds,
-                        onClick = { onOpenGallery(gallery) },
-                        onLongClick = { onLongPressGallery(gallery) },
-                    )
-                }
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    GalleryFooter(
-                        pageState = pageState,
-                        onRetry = onRetry,
-                        onLoadMore = onLoadMore,
-                    )
+            else -> {
+                val largeCoverHeight = ((screenWidthDp - horizontalPadding.value * 2) * 3f / 4f).dp
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(if (isLarge) 1 else columns),
+                    state = galleryGridState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = horizontalPadding,
+                        end = horizontalPadding,
+                        top = top,
+                        bottom = bottomContentPadding,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
+                    horizontalArrangement = Arrangement.spacedBy(gridGap),
+                ) {
+                    item(span = { GridItemSpan(maxLineSpan) }, contentType = "count") { countLabel() }
+                    items(galleries, key = { it.id }, contentType = { "gallery" }) { gallery ->
+                        GalleryCard(
+                            gallery = gallery,
+                            serverProfile = serverProfile,
+                            thumbnailHeight = if (isLarge) largeCoverHeight else thumbnailHeight,
+                            // Both layouts use the cover-on-top card; Large just makes it one big column.
+                            displayMode = StashGalleryDisplayMode.Grid,
+                            isSelected = gallery.id in gallerySelectionState.selectedGalleryIds,
+                            onClick = { onOpenGallery(gallery) },
+                            onLongClick = { onLongPressGallery(gallery) },
+                        )
+                    }
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        GalleryFooter(
+                            pageState = pageState,
+                            onRetry = onRetry,
+                            onLoadMore = onLoadMore,
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+/** Compact photo grid: a square, edge-to-edge thumbnail. */
+@Composable
+internal fun GalleryPhotoTile(
+    image: GalleryImageModel,
+    serverProfile: StashServerProfile,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onClick),
+    ) {
+        val model = rememberStashThumbnailModel(image.thumbnailUrl ?: image.previewUrl ?: image.imageUrl, serverProfile)
+        if (model != null) {
+            AsyncImage(
+                model = model,
+                contentDescription = stringResource(R.string.gallery_photo_open_content_description, image.title),
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+    }
+}
+
+/** Large photo list: the whole photo in its own aspect ratio, with a short caption. */
+@Composable
+internal fun GalleryPhotoLargeCard(
+    image: GalleryImageModel,
+    serverProfile: StashServerProfile,
+    onClick: () -> Unit,
+) {
+    val ratio = if ((image.width ?: 0) > 0 && (image.height ?: 0) > 0) {
+        (image.width!!.toFloat() / image.height!!).coerceIn(0.4f, 2.5f)
+    } else {
+        1f
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(ratio)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            // The full image: the thumbnail is too small for a full-width tile. Coil scales it to the tile size.
+            val model = rememberStashThumbnailModel(image.imageUrl ?: image.thumbnailUrl, serverProfile)
+            if (model != null) {
+                AsyncImage(
+                    model = model,
+                    contentDescription = stringResource(R.string.gallery_photo_open_content_description, image.title),
+                    modifier = Modifier.matchParentSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+        }
+        val performers = image.galleryImagePerformerLabels(limit = 3)
+        Text(image.title, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (performers.isNotEmpty()) {
+            Text(
+                performers.joinToString(", "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

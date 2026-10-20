@@ -75,6 +75,8 @@ sealed interface PerformerFeedItem {
         val scene: SceneCardModel,
         val date: String?,
         override val createdAt: String,
+        /** The same scene with performers and frame size, for rendering it as a Home-style post. */
+        val feed: FeedScene? = null,
     ) : PerformerFeedItem {
         override val key: String get() = "scene:${scene.id}"
     }
@@ -82,6 +84,7 @@ sealed interface PerformerFeedItem {
     data class Gallery(
         val gallery: GalleryCardModel,
         override val createdAt: String,
+        val feed: FeedGallery? = null,
     ) : PerformerFeedItem {
         override val key: String get() = "gallery:${gallery.id}"
     }

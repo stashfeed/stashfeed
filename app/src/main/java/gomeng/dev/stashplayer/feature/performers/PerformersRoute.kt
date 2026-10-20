@@ -1,6 +1,19 @@
 package gomeng.dev.stashplayer.feature.performers
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.runtime.saveable.rememberSaveable
+import gomeng.dev.stashplayer.core.ui.components.StashBrowseHeaderScaffold
+import gomeng.dev.stashplayer.core.ui.components.StashBrowseLayout
+import gomeng.dev.stashplayer.core.ui.components.StashFilterBlockLabel
+import gomeng.dev.stashplayer.core.ui.components.StashFilterScreen
+import gomeng.dev.stashplayer.core.ui.components.StashHeaderChip
+import gomeng.dev.stashplayer.core.ui.components.rememberStashCollapsingHeaderState
+import gomeng.dev.stashplayer.core.ui.designsystem.StashVisibilityFilterChip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -66,6 +79,7 @@ internal class PerformersViewModel : ViewModel() {
     var scope by mutableStateOf(PerformerListScope.Following)
     var sort by mutableStateOf(PerformerListSort.Name)
     var query by mutableStateOf("")
+    var layout by mutableStateOf(StashBrowseLayout.Compact)
     private var profile: StashServerProfile? = null
     private var randomSeed = nextStashRandomSortSeed()
     private var loadedKey: Any? = null
@@ -151,119 +165,142 @@ fun PerformersRoute(
             }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = StashSpacing.SectionGap),
-        verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = horizontalPadding),
-            verticalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
-        ) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(stashString(R.string.performers_title), style = MaterialTheme.typography.headlineLarge)
-                Spacer(Modifier.weight(1f))
-                if (state.hasLoadedOnce) {
-                    Text(
-                        text = stashString(R.string.performers_count, state.totalCount),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+    val headerState = rememberStashCollapsingHeaderState()
+    var filterOpen by rememberSaveable { mutableStateOf(false) }
+    if (filterOpen) {
+        PerformerFilterScreen(
+            scope = viewModel.scope,
+            sort = viewModel.sort,
+            countResults = { scope, sort ->
+                profile?.let {
+                    StashGraphQlClient(it).findPerformerCardsPage(perPage = 1, query = viewModel.query, scope = scope, sort = sort).totalCount
                 }
-            }
-            OutlinedTextField(
-                value = searchText,
-                onValueChange = { searchText = it },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
-                placeholder = { Text(stashString(R.string.performers_search)) },
+            },
+            onApply = { scope, sort ->
+                viewModel.scope = scope
+                viewModel.sort = sort
+            },
+            onDismiss = { filterOpen = false },
+        )
+    }
+    val chips = buildList {
+        if (viewModel.scope == PerformerListScope.Following) {
+            add(
+                StashHeaderChip(
+                    key = "scope",
+                    label = stashString(PerformerListScope.Following.labelRes),
+                    onClick = { filterOpen = true },
+                    onClear = { viewModel.scope = PerformerListScope.All },
+                ),
             )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(StashSpacing.ChipGap),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                PerformerListScope.entries.forEach { entry ->
-                    FilterChip(
-                        selected = viewModel.scope == entry,
-                        onClick = { viewModel.scope = entry },
-                        label = { Text(stashString(entry.labelRes)) },
+        }
+        if (viewModel.sort != PerformerListSort.Name) {
+            add(
+                StashHeaderChip(
+                    key = "sort",
+                    label = stashString(viewModel.sort.labelRes),
+                    onClick = { filterOpen = true },
+                    onClear = { viewModel.sort = PerformerListSort.Name },
+                ),
+            )
+        }
+    }
+    val large = viewModel.layout == StashBrowseLayout.Large
+
+    StashBrowseHeaderScaffold(
+        state = headerState,
+        searchValue = searchText,
+        onSearchChange = { searchText = it },
+        onClearSearch = { searchText = "" },
+        searchPlaceholder = stashString(R.string.performers_search),
+        filterCount = chips.size,
+        onOpenFilter = { filterOpen = true },
+        layout = viewModel.layout,
+        onToggleLayout = { viewModel.layout = if (large) StashBrowseLayout.Compact else StashBrowseLayout.Large },
+        horizontalPadding = horizontalPadding,
+        enabled = profile != null,
+        tabs = null,
+        chips = chips,
+        modifier = Modifier.fillMaxSize(),
+    ) { padding ->
+        val top = padding.calculateTopPadding()
+        when {
+            profile == null -> StashEmptyState(
+                state = StashEmptyStateModel(
+                    title = stashString(R.string.performers_title),
+                    message = stashString(R.string.performers_not_configured),
+                ),
+                modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
+            )
+            state.items.isEmpty() && state.error != null -> StashErrorState(
+                state = StashErrorStateModel(
+                    title = stashString(R.string.performers_error_title),
+                    message = state.error,
+                ),
+                modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
+                onRetry = viewModel.loader::retry,
+            )
+            state.items.isEmpty() && state.hasLoadedOnce && !state.isLoading -> {
+                if (viewModel.scope == PerformerListScope.Following && viewModel.query.isBlank()) {
+                    StashEmptyState(
+                        state = StashEmptyStateModel(
+                            title = stashString(R.string.performers_following_empty_title),
+                            message = stashString(R.string.performers_following_empty_message),
+                            primaryActionLabel = stashString(R.string.performers_show_all),
+                        ),
+                        modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
+                        onPrimaryAction = { viewModel.scope = PerformerListScope.All },
+                    )
+                } else {
+                    StashEmptyState(
+                        state = StashEmptyStateModel(
+                            title = stashString(R.string.performers_empty_title),
+                            message = stashString(R.string.performers_empty_message),
+                        ),
+                        modifier = Modifier.padding(top = top).padding(horizontal = horizontalPadding),
                     )
                 }
-                Spacer(Modifier.weight(1f))
-                PerformerSortMenu(
-                    selected = viewModel.sort,
-                    onSelect = { viewModel.sort = it },
-                )
             }
-        }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            when {
-                profile == null -> StashEmptyState(
-                    state = StashEmptyStateModel(
-                        title = stashString(R.string.performers_title),
-                        message = stashString(R.string.performers_not_configured),
-                    ),
-                    modifier = Modifier.padding(horizontal = horizontalPadding),
-                )
-                state.items.isEmpty() && state.error != null -> StashErrorState(
-                    state = StashErrorStateModel(
-                        title = stashString(R.string.performers_error_title),
-                        message = state.error,
-                    ),
-                    modifier = Modifier.padding(horizontal = horizontalPadding),
-                    onRetry = viewModel.loader::retry,
-                )
-                state.items.isEmpty() && state.hasLoadedOnce && !state.isLoading -> {
-                    if (viewModel.scope == PerformerListScope.Following && viewModel.query.isBlank()) {
-                        StashEmptyState(
-                            state = StashEmptyStateModel(
-                                title = stashString(R.string.performers_following_empty_title),
-                                message = stashString(R.string.performers_following_empty_message),
-                                primaryActionLabel = stashString(R.string.performers_show_all),
-                            ),
-                            modifier = Modifier.padding(horizontal = horizontalPadding),
-                            onPrimaryAction = { viewModel.scope = PerformerListScope.All },
-                        )
-                    } else {
-                        StashEmptyState(
-                            state = StashEmptyStateModel(
-                                title = stashString(R.string.performers_empty_title),
-                                message = stashString(R.string.performers_empty_message),
-                            ),
-                            modifier = Modifier.padding(horizontal = horizontalPadding),
+            else -> LazyVerticalGrid(
+                columns = if (large) {
+                    GridCells.Fixed(if (isFoldLikeLayout) 3 else 2)
+                } else {
+                    GridCells.Adaptive(minSize = if (isFoldLikeLayout) 140.dp else 104.dp)
+                },
+                state = gridState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = horizontalPadding,
+                    end = horizontalPadding,
+                    top = top,
+                    bottom = StashSpacing.BottomContentPadding,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
+                verticalArrangement = Arrangement.spacedBy(StashSpacing.SectionGap),
+            ) {
+                if (state.hasLoadedOnce) {
+                    item(key = "count", span = { GridItemSpan(maxLineSpan) }, contentType = "count") {
+                        Text(
+                            text = stashString(R.string.performers_count, state.totalCount),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
-                else -> LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = if (isFoldLikeLayout) 140.dp else 104.dp),
-                    state = gridState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = horizontalPadding,
-                        end = horizontalPadding,
-                        bottom = StashSpacing.BottomContentPadding,
-                    ),
-                    horizontalArrangement = Arrangement.spacedBy(StashSpacing.CardGap),
-                    verticalArrangement = Arrangement.spacedBy(StashSpacing.SectionGap),
-                ) {
-                    items(state.items, key = { it.id }) { performer ->
-                        PerformerTile(
-                            performer = performer,
-                            serverProfile = profile,
-                            onClick = { onOpenPerformer(performer.id) },
+                items(state.items, key = { it.id }, contentType = { "performer" }) { performer ->
+                    PerformerTile(
+                        performer = performer,
+                        serverProfile = profile,
+                        onClick = { onOpenPerformer(performer.id) },
+                    )
+                }
+                if (state.isLoading || state.error != null) {
+                    item(key = "footer", span = { GridItemSpan(maxLineSpan) }) {
+                        PagedFooter(
+                            isLoading = state.isLoading,
+                            error = state.error,
+                            onRetry = viewModel.loader::retry,
                         )
-                    }
-                    if (state.isLoading || state.error != null) {
-                        item(key = "footer", span = { GridItemSpan(maxLineSpan) }) {
-                            PagedFooter(
-                                isLoading = state.isLoading,
-                                error = state.error,
-                                onRetry = viewModel.loader::retry,
-                            )
-                        }
                     }
                 }
             }
@@ -271,26 +308,53 @@ fun PerformersRoute(
     }
 }
 
+/** Filter screen of the performer list: who to show and how to sort them. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PerformerSortMenu(
-    selected: PerformerListSort,
-    onSelect: (PerformerListSort) -> Unit,
+private fun PerformerFilterScreen(
+    scope: PerformerListScope,
+    sort: PerformerListSort,
+    countResults: suspend (PerformerListScope, PerformerListSort) -> Int?,
+    onApply: (PerformerListScope, PerformerListSort) -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    Box {
-        TextButton(onClick = { expanded = true }) {
-            Icon(Icons.Outlined.Sort, contentDescription = null)
-            Spacer(Modifier.padding(start = 4.dp))
-            Text(stashString(selected.labelRes))
+    var draftScope by remember { mutableStateOf(scope) }
+    var draftSort by remember { mutableStateOf(sort) }
+    StashFilterScreen(
+        title = stashString(R.string.browse_filter_button),
+        draftKey = draftScope to draftSort,
+        countResults = { countResults(draftScope, draftSort) },
+        onReset = {
+            draftScope = PerformerListScope.All
+            draftSort = PerformerListSort.Name
+        },
+        onApply = {
+            onApply(draftScope, draftSort)
+            onDismiss()
+        },
+        onDismiss = onDismiss,
+    ) {
+        StashFilterBlockLabel(stashString(R.string.filter_screen_view))
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            PerformerListScope.entries.forEachIndexed { index, entry ->
+                SegmentedButton(
+                    selected = draftScope == entry,
+                    onClick = { draftScope = entry },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = PerformerListScope.entries.size),
+                ) { Text(stashString(entry.labelRes)) }
+            }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            PerformerListSort.entries.forEach { sort ->
-                DropdownMenuItem(
-                    text = { Text(stashString(sort.labelRes)) },
-                    onClick = {
-                        expanded = false
-                        onSelect(sort)
-                    },
+        StashFilterBlockLabel(stashString(R.string.filter_screen_sort), modifier = Modifier.padding(top = 8.dp))
+        FlowRow(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            PerformerListSort.entries.forEach { entry ->
+                StashVisibilityFilterChip(
+                    selected = draftSort == entry,
+                    onClick = { draftSort = entry },
+                    label = { Text(stashString(entry.labelRes)) },
                 )
             }
         }
