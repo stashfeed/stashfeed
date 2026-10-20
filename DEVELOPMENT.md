@@ -4,7 +4,7 @@ This document is for people building Stash Android Player from source.
 
 ## Build From Source
 
-Install JDK 17 or newer and Android SDK 35, then run:
+Install JDK 21 and the Android SDK (compile SDK 36), then run:
 
 ```bash
 ./gradlew --no-daemon :app:assembleDebug
