@@ -219,4 +219,6 @@
     <string name="library_not_connected">Not connected</string>
     <string name="feed_sound_on">Turn sound on</string>
     <string name="feed_sound_off">Mute</string>
+    <string name="setup_welcome_title">Welcome to Stashy</string>
+    <string name="setup_welcome_message">Connect your Stash server to see your feed, performers and library.</string>
 </resources>

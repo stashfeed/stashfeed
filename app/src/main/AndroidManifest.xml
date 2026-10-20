@@ -40,6 +40,7 @@
 
         <activity
             android:name=".MainActivity"
+            android:theme="@style/Theme.StashPlayer.Starting"
             android:exported="true"
             android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode">

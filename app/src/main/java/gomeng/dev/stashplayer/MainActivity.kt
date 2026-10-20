@@ -1,5 +1,7 @@
 package gomeng.dev.stashplayer
 
+import gomeng.dev.stashplayer.app.StashLaunchState
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -9,6 +11,7 @@ import gomeng.dev.stashplayer.core.player.StashPictureInPictureController
 
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen().setKeepOnScreenCondition { !StashLaunchState.ready }
         super.onCreate(savedInstanceState)
         StashPictureInPictureController.setActive(isInPictureInPictureMode)
         setContent {

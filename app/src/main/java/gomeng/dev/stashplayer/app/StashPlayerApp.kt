@@ -15,6 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import gomeng.dev.stashplayer.core.network.StashServerProfile
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -93,7 +95,12 @@ fun StashPlayerAppRoot() {
     val recentAppsPrivacyEnabled by repository.recentAppsPrivacyEnabled.collectAsState(
         initial = StashSettingsRepository.DEFAULT_RECENT_APPS_PRIVACY_ENABLED,
     )
-    val savedProfile by repository.savedServerProfile.collectAsState(initial = null)
+    // Wait for the stored server before showing anything: deciding between setup and Home on a not-yet-loaded
+    // value flashed the setup screen on every launch. The system splash stays up until then.
+    val savedProfileLoad by produceState<StashSavedProfileLoad>(StashSavedProfileLoad.Loading, repository) {
+        repository.savedServerProfile.collect { value = StashSavedProfileLoad.Loaded(it) }
+    }
+    val savedProfile = (savedProfileLoad as? StashSavedProfileLoad.Loaded)?.profile
     val biometricAppLockEnabledState = repository.biometricAppLockEnabled.collectAsState(initial = null as Boolean?)
     val biometricAppLockEnabled = biometricAppLockEnabledState.value
     var appSessionUnlocked by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
@@ -128,7 +135,13 @@ fun StashPlayerAppRoot() {
             uiStyle = uiStyle,
         ) {
             Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                biometricAppLockEnabled?.let { appLockEnabled ->
+                val launchReady = biometricAppLockEnabled != null && savedProfileLoad is StashSavedProfileLoad.Loaded
+                // Set before the nav host composes below, so its first frame already knows the stored server.
+                if (launchReady) StashLaunchState.initialSavedProfile = savedProfile
+                LaunchedEffect(launchReady) {
+                    if (launchReady) StashLaunchState.ready = true
+                }
+                if (launchReady) biometricAppLockEnabled?.let { appLockEnabled ->
                     BiometricAppLockGate(
                         hasSavedProfile = savedProfile != null,
                         appLockEnabled = appLockEnabled,
@@ -198,4 +211,17 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findActivity()
     else -> null
+}
+
+private sealed interface StashSavedProfileLoad {
+    data object Loading : StashSavedProfileLoad
+    data class Loaded(val profile: StashServerProfile?) : StashSavedProfileLoad
+}
+
+/** Launch handshake with [gomeng.dev.stashplayer.MainActivity]'s splash screen. */
+object StashLaunchState {
+    /** True once the first screen can be decided; the splash screen stays up until then. */
+    @Volatile var ready: Boolean = false
+    /** The stored server as loaded at launch, so the nav host starts on the right screen. */
+    @Volatile var initialSavedProfile: StashServerProfile? = null
 }

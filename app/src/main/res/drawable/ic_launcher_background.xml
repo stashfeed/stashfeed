@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Stashy's canvas with a soft violet glow behind the monogram, so the icon reads as lit rather than flat. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#141420" android:pathData="M0,0h108v108h-108z" />
+    <path android:fillColor="#0B0B0F" android:pathData="M0,0h108v108h-108z" />
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="46"
+                android:gradientRadius="58">
+                <item android:offset="0" android:color="#663A1D5E" />
+                <item android:offset="0.6" android:color="#221A1030" />
+                <item android:offset="1" android:color="#000B0B0F" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>

@@ -100,6 +100,7 @@ import gomeng.dev.stashplayer.core.network.shouldRefreshPasswordSessionOnStartup
 import gomeng.dev.stashplayer.core.player.PlaybackOrientationMode
 import gomeng.dev.stashplayer.core.ui.theme.LocalStashStyleTokens
 import gomeng.dev.stashplayer.core.ui.components.LocalStashBrowseTabs
+import gomeng.dev.stashplayer.app.StashLaunchState
 import gomeng.dev.stashplayer.core.ui.components.LocalStashAvatarTarget
 import gomeng.dev.stashplayer.core.ui.components.StashAvatarTarget
 import gomeng.dev.stashplayer.core.ui.components.LocalStashPlayerExpanded
@@ -259,7 +260,7 @@ fun StashNavHost(
     val context = LocalContext.current
     val settingsRepository = remember(context) { StashSettingsRepository(context) }
     val localRepository = remember(context) { StashLocalLibraryRepository(context) }
-    val savedProfile by settingsRepository.savedServerProfile.collectAsState(initial = null)
+    val savedProfile by settingsRepository.savedServerProfile.collectAsState(initial = StashLaunchState.initialSavedProfile)
     val runtimeProfile by settingsRepository.serverProfile.collectAsState(initial = null)
     val playbackOrientationMode by settingsRepository.playbackOrientationMode.collectAsState(
         initial = StashSettingsRepository.DEFAULT_PLAYBACK_ORIENTATION_MODE,

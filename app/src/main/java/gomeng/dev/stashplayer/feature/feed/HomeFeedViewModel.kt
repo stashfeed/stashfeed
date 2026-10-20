@@ -153,6 +153,8 @@ internal class HomeFeedViewModel : ViewModel() {
                 showSeenPosts = false
                 state = HomeFeedState.Ready(loaded.toFeed())
             }.onFailure { throwable ->
+                // A load replaced by a newer one is not an error.
+                if (throwable is kotlinx.coroutines.CancellationException) return@onFailure
                 if (source == null) {
                     state = HomeFeedState.Failed(redactStashCredentialText(throwable.message ?: throwable::class.simpleName.orEmpty()))
                 }

@@ -43,6 +43,21 @@ import gomeng.dev.stashplayer.feature.security.rememberDeviceAuthenticationAvail
 import gomeng.dev.stashplayer.feature.security.rememberDeviceAuthenticationLauncher
 import kotlinx.coroutines.launch
 import gomeng.dev.stashplayer.R
+import gomeng.dev.stashplayer.core.ui.theme.StashBrandGradient
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSpace
+import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.ui.res.stringResource
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 
@@ -120,12 +135,40 @@ fun ServerSetupRoute(
             .fillMaxSize()
             .then(if (shouldUseScrollableSetupContent(authMode)) Modifier.verticalScroll(scrollState) else Modifier)
             .imePadding()
-            .padding(if (isFoldLikeLayout) 32.dp else 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .statusBarsPadding()
+            .padding(horizontal = if (isFoldLikeLayout) StashSpace.XXL else StashSpace.L, vertical = StashSpace.XL),
+        verticalArrangement = Arrangement.spacedBy(StashSpace.L),
     ) {
-        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
+        // Welcome: the mark in a brand ring, a name and one line on what happens next.
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(top = StashSpace.L, bottom = StashSpace.S),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(StashSpace.M),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(84.dp)
+                    .background(StashBrandGradient, CircleShape)
+                    .padding(3.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainer, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Image(painter = painterResource(R.drawable.ic_stashy_mark), contentDescription = null, modifier = Modifier.size(44.dp))
+            }
+            Text(stashString(R.string.setup_welcome_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
+            Text(
+                stashString(R.string.setup_welcome_message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(StashRadius.M),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        ) {
             Column(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -261,12 +304,16 @@ fun ServerSetupRoute(
                             isSaving = false
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                     enabled = !isSaving,
                 ) {
-                    if (isSaving) CircularProgressIndicator() else Text(stashString(R.string.auto_kr_0536))
+                    if (isSaving) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                    } else {
+                        Text(stashString(R.string.auto_kr_0536))
+                    }
                 }
-                Button(
+                FilledTonalButton(
                     onClick = {
                         coroutineScope.launch {
                             val profile = buildSetupProfile(
@@ -286,7 +333,7 @@ fun ServerSetupRoute(
                             onContinue()
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     enabled = !isSaving && serverUrl.isNotBlank() && shouldAllowUntestedSetupSave(authMode),
                 ) {
                     Text(stashString(R.string.auto_kr_0537))
