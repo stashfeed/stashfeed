@@ -9,14 +9,25 @@ import androidx.compose.ui.unit.dp
  * Keep these values small and stable: feature screens should depend on the
  * semantic names instead of copying raw spacing, radius, alpha, or color values.
  */
+/** The spacing scale. Every gap, padding and margin in the app is one of these steps. */
+object StashSpace {
+    val XS = 4.dp
+    val S = 8.dp
+    val M = 12.dp
+    val L = 16.dp
+    val XL = 24.dp
+    val XXL = 32.dp
+}
+
+/** Semantic spacing built from [StashSpace]; screens use these names. */
 object StashSpacing {
-    val ScreenHorizontalCompact = 14.dp
-    val ScreenHorizontalExpanded = 24.dp
-    val SectionGap = 18.dp
-    val CardGap = 12.dp
-    val CardPadding = 14.dp
-    val ChipGap = 8.dp
-    val BottomContentPadding = 92.dp
+    val ScreenHorizontalCompact = StashSpace.L
+    val ScreenHorizontalExpanded = StashSpace.XL
+    val SectionGap = StashSpace.XL
+    val CardGap = StashSpace.M
+    val CardPadding = StashSpace.L
+    val ChipGap = StashSpace.S
+    val BottomContentPadding = 96.dp
 }
 
 object StashTouch {
@@ -28,12 +39,20 @@ object StashTouch {
     val SceneQuickActionMinTarget = 48.dp
 }
 
-object StashRadii {
-    val Hero = 28.dp
-    val Card = 22.dp
-    val Thumbnail = 18.dp
-    val Sheet = 28.dp
+/** Three radii and a pill: small parts, cards, sheets. Matches MaterialTheme.shapes. */
+object StashRadius {
+    val S = 8.dp
+    val M = 16.dp
+    val L = 28.dp
     val Pill = 999.dp
+}
+
+object StashRadii {
+    val Hero = StashRadius.L
+    val Card = StashRadius.M
+    val Thumbnail = StashRadius.S
+    val Sheet = StashRadius.L
+    val Pill = StashRadius.Pill
 }
 
 object StashMotion {
@@ -42,6 +61,12 @@ object StashMotion {
     const val BottomSheetSettleMs = 300
     const val ToggleFeedbackMs = 180
     const val SeekThumbActiveMs = 100
+
+    /** Springs instead of fixed durations: things that move settle like physical objects. */
+    const val SpringStiffnessStandard = 700f
+    const val SpringStiffnessFast = 1400f
+    const val SpringDampingStandard = 0.85f
+    const val SpringDampingBouncy = 0.7f
 
     fun isPremiumMicroInteraction(durationMs: Int): Boolean = durationMs in 120..300
 }
@@ -70,31 +95,40 @@ object StashAlpha {
     const val WatchLaterActionSelected = 0.26f
 }
 
+/**
+ * Fixed colors for places that sit on media rather than on the theme (player chrome, badges over thumbnails).
+ * Everything that sits on the app's own surfaces takes its color from MaterialTheme.colorScheme instead.
+ */
 object StashColors {
-    val Background = Color(0xFF05070D)
-    val Surface = Color(0xFF0B1020)
-    val SurfaceElevated = Color(0xFF111827)
-    val Primary = Color(0xFF8B5CF6)
-    val PrimaryBlue = Color(0xFF60A5FA)
-    val AccentCyan = Color(0xFF22D3EE)
-    val AccentAmber = Color(0xFFF59E0B)
+    val Background = Color(0xFF0B0B0F)
+    val Surface = Color(0xFF15151B)
+    val SurfaceElevated = Color(0xFF1E1E26)
+    val Primary = Color(0xFFB26BFF)
+    val PrimaryBlue = Color(0xFF6AA9FF)
+    val AccentCyan = Color(0xFF34D399)
+    val AccentAmber = Color(0xFFFF9F43)
     val ScrimStrong = Color.Black.copy(alpha = 0.72f)
     val ScrimSubtle = Color.Black.copy(alpha = 0.34f)
     val BufferTrack = Color.White.copy(alpha = 0.28f)
     val PlayerChromeBorder = Color.White.copy(alpha = StashAlpha.PlayerChromeBorder)
     val PlayerChromeHighlight = Color.White.copy(alpha = StashAlpha.PlayerChromeHighlight)
-    val PlayerStatusAccent = Color(0xFFA78BFA)
+    val PlayerStatusAccent = Color(0xFFC9A0FF)
     val Success = Color(0xFF34D399)
-    val Warning = Color(0xFFFBBF24)
-    val Error = Color(0xFFF87171)
-    val FocusRing = Color(0xFFA78BFA)
-    val TextPrimary = Color(0xFFF8FAFC)
-    val TextSecondary = Color(0xFFCBD5E1)
-    val QueueAction = Color(0xFF67E8F9)
-    val QueueActionContainer = AccentCyan
-    val FavoriteAction = Color(0xFFFB7185)
-    val FavoriteActionContainer = Color(0xFFF43F5E)
-    val WatchLaterAction = Color(0xFFC4B5FD)
+    val Warning = Color(0xFFFACC15)
+    val Error = Color(0xFFFF6B81)
+    val FocusRing = Color(0xFFC9A0FF)
+    val TextPrimary = Color(0xFFF5F4F8)
+    val TextSecondary = Color(0xFFA8A6B4)
+    /** Text and badges drawn straight on photos and video. */
+    val OnMedia = Color.White
+    val OnMediaMuted = Color.White.copy(alpha = 0.78f)
+    val MediaBadge = Color.Black.copy(alpha = 0.62f)
+    val Star = Color(0xFFFACC15)
+    val QueueAction = Color(0xFF6AA9FF)
+    val QueueActionContainer = PrimaryBlue
+    val FavoriteAction = Color(0xFFF472B6)
+    val FavoriteActionContainer = Color(0xFFF472B6)
+    val WatchLaterAction = Color(0xFFC9A0FF)
     val WatchLaterActionContainer = Primary
 }
 

@@ -100,6 +100,8 @@ import gomeng.dev.stashplayer.core.network.shouldRefreshPasswordSessionOnStartup
 import gomeng.dev.stashplayer.core.player.PlaybackOrientationMode
 import gomeng.dev.stashplayer.core.ui.theme.LocalStashStyleTokens
 import gomeng.dev.stashplayer.core.ui.components.LocalStashBrowseTabs
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSegmentedTabs
+import gomeng.dev.stashplayer.core.ui.designsystem.StashSpace
 import gomeng.dev.stashplayer.core.model.StashGalleryBrowseMode
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScale
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScaleProvider
@@ -951,23 +953,14 @@ private fun ExploreSegmentRow(
     onSelect: (ExploreSegment) -> Unit,
     isFoldLikeLayout: Boolean,
 ) {
-    val horizontalPadding = if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact
-    SingleChoiceSegmentedButtonRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = horizontalPadding)
-            .padding(top = StashSpacing.CardGap),
-    ) {
-        ExploreSegment.entries.forEachIndexed { index, segment ->
-            SegmentedButton(
-                selected = segment == selected,
-                onClick = { onSelect(segment) },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = ExploreSegment.entries.size),
-            ) {
-                Text(stringResource(segment.labelRes))
-            }
-        }
-    }
+    StashSegmentedTabs(
+        options = ExploreSegment.entries,
+        selected = selected,
+        label = { stringResource(it.labelRes) },
+        onSelect = onSelect,
+        contentPadding = if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact,
+        modifier = Modifier.padding(top = StashSpace.S),
+    )
 }
 
 private fun PlayerPlaybackQueueContinuation.videoFilterState() = when (this) {

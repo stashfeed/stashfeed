@@ -57,7 +57,7 @@ data class StashDiscoveryVisualPolicy(
 
 fun stashButtonPolicy(): StashButtonPolicy = StashButtonPolicy(
     cornerRadiusDp = StashRadii.Pill.value.toInt(),
-    primaryMinHeightDp = 44,
+    primaryMinHeightDp = 48,
     secondaryMinHeightDp = 42,
     actionPillMinHeightDp = 38,
     iconSpacingDp = 6,
@@ -219,7 +219,7 @@ fun StashPrimaryButton(
             disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = StashAlpha.GlassStrong),
             disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.48f),
         ),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
     ) {
         StashButtonContent(text = text, icon = icon, bold = true)
     }
@@ -237,16 +237,15 @@ fun StashSecondaryButton(
     icon: (@Composable () -> Unit)? = null,
 ) {
     val policy = stashButtonPolicy()
+    // Tonal: a filled pill on the next surface step, no outline. Selected takes the accent container.
     val borderColor = when {
-        !enabled -> MaterialTheme.colorScheme.outline.copy(alpha = StashAlpha.BorderSubtle)
-        destructive -> MaterialTheme.colorScheme.error.copy(alpha = StashAlpha.BorderRaised)
-        selected -> MaterialTheme.colorScheme.primary.copy(alpha = StashAlpha.BorderRaised)
-        else -> MaterialTheme.colorScheme.outline.copy(alpha = StashAlpha.BorderStrong)
+        destructive && enabled -> MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+        else -> Color.Transparent
     }
     val containerColor = when {
-        selected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = StashAlpha.SelectedContainer)
-        destructive -> MaterialTheme.colorScheme.errorContainer.copy(alpha = StashAlpha.GlassStrong)
-        else -> MaterialTheme.colorScheme.surface.copy(alpha = StashAlpha.GlassStrong)
+        selected -> MaterialTheme.colorScheme.primaryContainer
+        destructive -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f)
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
     val contentColor = when {
         destructive -> MaterialTheme.colorScheme.error

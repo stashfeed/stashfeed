@@ -7,11 +7,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** The two looks the app can wear; picked under Settings › Appearance. */
+/**
+ * Where the accent color comes from (Settings › Appearance). The look itself is always Stashy's dark design;
+ * the persisted values stay as they were so existing settings carry over.
+ */
 enum class StashUiStyle(val persistedValue: String) {
-    /** Instagram-like: pure black, edge-to-edge media, brand gradient. Always dark. */
+    /** The accent picked in Settings. */
     SocialDark("social_dark"),
-    /** Android's Material You: colors from the wallpaper (Android 12+), soft rounded cards. */
+    /** The wallpaper's accent (Android 12+); falls back to the picked accent on older devices. */
     MaterialYou("material_you"),
     ;
 
@@ -24,7 +27,7 @@ enum class StashUiStyle(val persistedValue: String) {
 }
 
 val StashBrandPink = Color(0xFFF472B6)
-val StashBrandPurple = Color(0xFFA855F7)
+val StashBrandPurple = Color(0xFFB26BFF)
 val StashBrandBlue = Color(0xFF6AA9FF)
 
 /** Pink → purple → blue: logo, story rings, progress bars in Social Dark. */
@@ -49,31 +52,18 @@ data class StashStyleTokens(
     val isSocial: Boolean get() = style == StashUiStyle.SocialDark
 }
 
-fun stashStyleTokens(style: StashUiStyle, primary: Color, tertiary: Color): StashStyleTokens = when (style) {
-    StashUiStyle.SocialDark -> StashStyleTokens(
-        style = style,
-        feedCardInset = 0.dp,
-        feedCardRadius = 0.dp,
-        feedCardPadding = 0.dp,
-        feedMediaRadius = 0.dp,
-        feedPostGap = 6.dp,
-        showFeedDividers = true,
-        storyRing = StashBrandGradient,
-        navUsesPill = false,
-    )
-    StashUiStyle.MaterialYou -> StashStyleTokens(
-        style = style,
-        feedCardInset = 12.dp,
-        feedCardRadius = 28.dp,
-        feedCardPadding = 14.dp,
-        feedMediaRadius = 20.dp,
-        feedPostGap = 12.dp,
-        showFeedDividers = false,
-        storyRing = Brush.linearGradient(listOf(primary, tertiary)),
-        navUsesPill = true,
-    )
-}
+fun stashStyleTokens(primary: Color): StashStyleTokens = StashStyleTokens(
+    style = StashUiStyle.SocialDark,
+    feedCardInset = 0.dp,
+    feedCardRadius = 0.dp,
+    feedCardPadding = 0.dp,
+    feedMediaRadius = 0.dp,
+    feedPostGap = 6.dp,
+    showFeedDividers = true,
+    storyRing = StashBrandGradient,
+    navUsesPill = true,
+)
 
 val LocalStashStyleTokens = staticCompositionLocalOf {
-    stashStyleTokens(StashUiStyle.default, StashBrandPurple, StashBrandPink)
+    stashStyleTokens(StashBrandPurple)
 }

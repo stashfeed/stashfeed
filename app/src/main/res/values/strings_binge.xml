@@ -2,12 +2,12 @@
 <!-- Strings for features added on top of stash-player-android (Binge-style performers, feed, navigation). -->
 <resources>
     <!-- Appearance -->
-    <string name="settings_ui_style_title">Style</string>
-    <string name="settings_ui_style_description">The overall look of Stashy.</string>
-    <string name="settings_ui_style_social_label">Social Dark</string>
-    <string name="settings_ui_style_social_description">Pure black, edge-to-edge media, pink-to-blue accents. Always dark.</string>
-    <string name="settings_ui_style_material_label">Material You</string>
-    <string name="settings_ui_style_material_description">Colors from your wallpaper and soft rounded cards. Follows the theme setting below.</string>
+    <string name="settings_ui_style_title">Accent source</string>
+    <string name="settings_ui_style_description">Stashy is always dark. Pick where its accent color comes from.</string>
+    <string name="settings_ui_style_social_label">Stashy colors</string>
+    <string name="settings_ui_style_social_description">Use the accent you pick below.</string>
+    <string name="settings_ui_style_material_label">Wallpaper colors</string>
+    <string name="settings_ui_style_material_description">Take the accent from your wallpaper (Android 12 and later).</string>
 
     <!-- Saved filters -->
     <string name="saved_filters_from_stash">From your Stash</string>

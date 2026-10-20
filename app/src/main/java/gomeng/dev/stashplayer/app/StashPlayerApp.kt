@@ -109,8 +109,6 @@ fun StashPlayerAppRoot() {
         localizedContext.resources.configuration
     }
     updateStashStringContext(localizedContext)
-    // Social Dark is dark by definition; Material You follows the theme mode setting.
-    val darkTheme = uiStyle == StashUiStyle.SocialDark || resolveStashDarkTheme(themeMode, isSystemInDarkTheme())
     val isFoldLikeLayout = isFoldLikeLayoutBySmallestWidthDp(deviceConfiguration.smallestScreenWidthDp)
     val activity = remember(context, localView) {
         context.findActivity() ?: localView.context.findActivity()
@@ -126,30 +124,10 @@ fun StashPlayerAppRoot() {
         LocalConfiguration provides localizedConfiguration,
     ) {
         StashPlayerTheme(
-            darkTheme = darkTheme,
             accentColor = accentColor,
             uiStyle = uiStyle,
         ) {
-            val background = MaterialTheme.colorScheme.background
-            // Social Dark stays pure black; the soft accent glow belongs to the Material look.
-            val glowColor = if (uiStyle == StashUiStyle.SocialDark) {
-                Color.Transparent
-            } else {
-                MaterialTheme.colorScheme.primary.copy(alpha = if (darkTheme) 0.12f else 0.06f)
-            }
-            Surface(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .drawBehind {
-                        drawRect(background)
-                        drawCircle(
-                            color = glowColor,
-                            radius = size.width * 0.68f,
-                            center = Offset(size.width / 2f, 0f),
-                        )
-                    },
-                color = Color.Transparent,
-            ) {
+            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                 biometricAppLockEnabled?.let { appLockEnabled ->
                     BiometricAppLockGate(
                         hasSavedProfile = savedProfile != null,

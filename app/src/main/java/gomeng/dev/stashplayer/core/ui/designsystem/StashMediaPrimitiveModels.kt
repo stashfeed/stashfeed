@@ -36,7 +36,7 @@ fun stashFilterChipVisibilityPolicy(tone: StashFilterChipTone): StashFilterChipV
         borderRole = StashActionPillColorRole.Primary,
         containerAlpha = 1f,
         contentAlpha = 1f,
-        borderAlpha = 0.88f,
+        borderAlpha = 0.6f,
         usesSelectionAccent = true,
     )
 
@@ -44,9 +44,9 @@ fun stashFilterChipVisibilityPolicy(tone: StashFilterChipTone): StashFilterChipV
         containerRole = StashActionPillColorRole.SurfaceContainer,
         contentRole = StashActionPillColorRole.OnSurface,
         borderRole = StashActionPillColorRole.Outline,
-        containerAlpha = 0.78f,
+        containerAlpha = 1f,
         contentAlpha = 0.92f,
-        borderAlpha = 0.34f,
+        borderAlpha = 0.6f,
         usesSelectionAccent = false,
     )
 

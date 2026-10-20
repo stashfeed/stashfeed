@@ -1,460 +1,225 @@
 package gomeng.dev.stashplayer.core.ui.theme
 
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
+import gomeng.dev.stashplayer.R
 
-private object StashThemeArgb {
-    const val DarkBackground = 0xFF070A12
-    const val DarkSurface = 0xFF0B1020
-    const val DarkSurfaceElevated = 0xFF111827
-    const val DarkSurfaceVariant = 0xFF1A2030
-    const val DarkOnSurface = 0xFFF8FAFC
-    const val DarkOnSurfaceVariant = 0xFFCBD5E1
-    const val DarkOutline = 0xFF2A2F3C
-    const val DarkPrimary = 0xFF7C3AED
-    const val DarkOnPrimary = 0xFFFFFFFF
-    const val DarkPrimaryContainer = 0xFF312E81
-    const val DarkOnPrimaryContainer = 0xFFEDE9FE
-    const val DarkSecondary = 0xFF22D3EE
-    const val DarkOnSecondary = 0xFF062A33
-    const val DarkSecondaryContainer = 0xFF164E63
-    const val DarkOnSecondaryContainer = 0xFFCFFAFE
-    const val DarkTertiary = 0xFFFBBF24
-    const val DarkOnTertiary = 0xFF221A03
-    const val DarkError = 0xFFF87171
-    const val DarkOnError = 0xFF300304
-    const val DarkErrorContainer = 0xFF7F1D1D
-    const val DarkOnErrorContainer = 0xFFFEE2E2
-
-    const val LightBackground = 0xFFF8FAFC
-    const val LightSurface = 0xFFFFFFFF
-    const val LightSurfaceElevated = 0xFFF1F5F9
-    const val LightSurfaceVariant = 0xFFE2E8F0
-    const val LightOnSurface = 0xFF0F172A
-    const val LightOnSurfaceVariant = 0xFF334155
-    const val LightOutline = 0xFFCBD5E1
-    const val LightPrimary = 0xFF6D28D9
-    const val LightOnPrimary = 0xFFFFFFFF
-    const val LightPrimaryContainer = 0xFFEDE9FE
-    const val LightOnPrimaryContainer = 0xFF312E81
-    const val LightSecondary = 0xFF0E7490
-    const val LightOnSecondary = 0xFFFFFFFF
-    const val LightSecondaryContainer = 0xFFCFFAFE
-    const val LightOnSecondaryContainer = 0xFF164E63
-    const val LightTertiary = 0xFFB45309
-    const val LightOnTertiary = 0xFFFFFFFF
-    const val LightError = 0xFFDC2626
-    const val LightOnError = 0xFFFFFFFF
-    const val LightErrorContainer = 0xFFFEE2E2
-    const val LightOnErrorContainer = 0xFF7F1D1D
+/**
+ * Stashy's one look: a near-black, slightly cool canvas, layered surfaces for depth, and one accent color.
+ * Media sits edge to edge on top of it, so the surfaces stay quiet.
+ */
+private object StashyPalette {
+    val Canvas = Color(0xFF0B0B0F)
+    val ContainerLowest = Color(0xFF060609)
+    val ContainerLow = Color(0xFF111116)
+    val Container = Color(0xFF15151B)
+    val ContainerHigh = Color(0xFF1E1E26)
+    val ContainerHighest = Color(0xFF2A2A34)
+    val OnCanvas = Color(0xFFF5F4F8)
+    val OnCanvasMuted = Color(0xFFA8A6B4)
+    val Outline = Color(0xFF34343F)
+    val OutlineVariant = Color(0xFF22222B)
+    val Star = Color(0xFFFACC15)
+    val Error = Color(0xFFFF6B81)
+    val OnError = Color(0xFF2B0710)
+    val ErrorContainer = Color(0xFF5C1A28)
+    val OnErrorContainer = Color(0xFFFFDDE3)
 }
 
-private val MediaDarkColors = darkColorScheme(
-    background = Color(StashThemeArgb.DarkBackground),
-    onBackground = Color(StashThemeArgb.DarkOnSurface),
-    surface = Color(StashThemeArgb.DarkSurface),
-    onSurface = Color(StashThemeArgb.DarkOnSurface),
-    surfaceContainer = Color(StashThemeArgb.DarkSurface),
-    surfaceContainerHigh = Color(StashThemeArgb.DarkSurfaceElevated),
-    surfaceVariant = Color(StashThemeArgb.DarkSurfaceVariant),
-    onSurfaceVariant = Color(StashThemeArgb.DarkOnSurfaceVariant),
-    primary = Color(StashThemeArgb.DarkPrimary),
-    onPrimary = Color(StashThemeArgb.DarkOnPrimary),
-    primaryContainer = Color(StashThemeArgb.DarkPrimaryContainer),
-    onPrimaryContainer = Color(StashThemeArgb.DarkOnPrimaryContainer),
-    secondary = Color(StashThemeArgb.DarkSecondary),
-    onSecondary = Color(StashThemeArgb.DarkOnSecondary),
-    secondaryContainer = Color(StashThemeArgb.DarkSecondaryContainer),
-    onSecondaryContainer = Color(StashThemeArgb.DarkOnSecondaryContainer),
-    tertiary = Color(StashThemeArgb.DarkTertiary),
-    onTertiary = Color(StashThemeArgb.DarkOnTertiary),
-    error = Color(StashThemeArgb.DarkError),
-    onError = Color(StashThemeArgb.DarkOnError),
-    errorContainer = Color(StashThemeArgb.DarkErrorContainer),
-    onErrorContainer = Color(StashThemeArgb.DarkOnErrorContainer),
-    outline = Color(StashThemeArgb.DarkOutline),
-    outlineVariant = Color(StashThemeArgb.DarkSurfaceVariant),
-)
-
-private val MediaLightColors = lightColorScheme(
-    background = Color(StashThemeArgb.LightBackground),
-    onBackground = Color(StashThemeArgb.LightOnSurface),
-    surface = Color(StashThemeArgb.LightSurface),
-    onSurface = Color(StashThemeArgb.LightOnSurface),
-    surfaceContainer = Color(StashThemeArgb.LightSurfaceElevated),
-    surfaceContainerHigh = Color(StashThemeArgb.LightSurfaceVariant),
-    surfaceVariant = Color(StashThemeArgb.LightSurfaceVariant),
-    onSurfaceVariant = Color(StashThemeArgb.LightOnSurfaceVariant),
-    primary = Color(StashThemeArgb.LightPrimary),
-    onPrimary = Color(StashThemeArgb.LightOnPrimary),
-    primaryContainer = Color(StashThemeArgb.LightPrimaryContainer),
-    onPrimaryContainer = Color(StashThemeArgb.LightOnPrimaryContainer),
-    secondary = Color(StashThemeArgb.LightSecondary),
-    onSecondary = Color(StashThemeArgb.LightOnSecondary),
-    secondaryContainer = Color(StashThemeArgb.LightSecondaryContainer),
-    onSecondaryContainer = Color(StashThemeArgb.LightOnSecondaryContainer),
-    tertiary = Color(StashThemeArgb.LightTertiary),
-    onTertiary = Color(StashThemeArgb.LightOnTertiary),
-    error = Color(StashThemeArgb.LightError),
-    onError = Color(StashThemeArgb.LightOnError),
-    errorContainer = Color(StashThemeArgb.LightErrorContainer),
-    onErrorContainer = Color(StashThemeArgb.LightOnErrorContainer),
-    outline = Color(StashThemeArgb.LightOutline),
-    outlineVariant = Color(StashThemeArgb.LightSurfaceVariant),
-)
-
+/** Accent hue plus the ink drawn on it, a tinted container and the ink on that container. */
 private data class StashAccentPalette(
-    val primary: Long,
-    val onPrimary: Long,
-    val primaryContainer: Long,
-    val onPrimaryContainer: Long,
-    val secondary: Long,
-    val onSecondary: Long,
-    val secondaryContainer: Long,
-    val onSecondaryContainer: Long,
+    val primary: Color,
+    val onPrimary: Color,
+    val container: Color,
+    val onContainer: Color,
 )
 
-private fun stashAccentPalette(
-    accentColor: StashAccentColor,
-    darkTheme: Boolean,
-): StashAccentPalette = when (accentColor) {
-    StashAccentColor.Purple -> if (darkTheme) {
-        StashAccentPalette(
-            primary = StashThemeArgb.DarkPrimary.toArgbLong(),
-            onPrimary = StashThemeArgb.DarkOnPrimary.toArgbLong(),
-            primaryContainer = StashThemeArgb.DarkPrimaryContainer.toArgbLong(),
-            onPrimaryContainer = StashThemeArgb.DarkOnPrimaryContainer.toArgbLong(),
-            secondary = StashThemeArgb.DarkSecondary.toArgbLong(),
-            onSecondary = StashThemeArgb.DarkOnSecondary.toArgbLong(),
-            secondaryContainer = StashThemeArgb.DarkSecondaryContainer.toArgbLong(),
-            onSecondaryContainer = StashThemeArgb.DarkOnSecondaryContainer.toArgbLong(),
-        )
-    } else {
-        StashAccentPalette(
-            primary = StashThemeArgb.LightPrimary.toArgbLong(),
-            onPrimary = StashThemeArgb.LightOnPrimary.toArgbLong(),
-            primaryContainer = StashThemeArgb.LightPrimaryContainer.toArgbLong(),
-            onPrimaryContainer = StashThemeArgb.LightOnPrimaryContainer.toArgbLong(),
-            secondary = StashThemeArgb.LightSecondary.toArgbLong(),
-            onSecondary = StashThemeArgb.LightOnSecondary.toArgbLong(),
-            secondaryContainer = StashThemeArgb.LightSecondaryContainer.toArgbLong(),
-            onSecondaryContainer = StashThemeArgb.LightOnSecondaryContainer.toArgbLong(),
-        )
-    }
-
-    StashAccentColor.Blue -> if (darkTheme) {
-        StashAccentPalette(
-            primary = 0xFF2563EBu.toLong(),
-            onPrimary = 0xFFFFFFFFu.toLong(),
-            primaryContainer = 0xFF1E3A8Au.toLong(),
-            onPrimaryContainer = 0xFFDBEAFEu.toLong(),
-            secondary = 0xFF38BDF8u.toLong(),
-            onSecondary = 0xFF082F49u.toLong(),
-            secondaryContainer = 0xFF075985u.toLong(),
-            onSecondaryContainer = 0xFFE0F2FEu.toLong(),
-        )
-    } else {
-        StashAccentPalette(
-            primary = 0xFF2563EBu.toLong(),
-            onPrimary = 0xFFFFFFFFu.toLong(),
-            primaryContainer = 0xFFDBEAFEu.toLong(),
-            onPrimaryContainer = 0xFF1E3A8Au.toLong(),
-            secondary = 0xFF0369A1u.toLong(),
-            onSecondary = 0xFFFFFFFFu.toLong(),
-            secondaryContainer = 0xFFE0F2FEu.toLong(),
-            onSecondaryContainer = 0xFF075985u.toLong(),
-        )
-    }
-
-    StashAccentColor.Cyan -> if (darkTheme) {
-        StashAccentPalette(
-            primary = 0xFF22D3EEu.toLong(),
-            onPrimary = 0xFF062A33u.toLong(),
-            primaryContainer = 0xFF164E63u.toLong(),
-            onPrimaryContainer = 0xFFCFFAFEu.toLong(),
-            secondary = 0xFF06B6D4u.toLong(),
-            onSecondary = 0xFF062A33u.toLong(),
-            secondaryContainer = 0xFF155E75u.toLong(),
-            onSecondaryContainer = 0xFFCFFAFEu.toLong(),
-        )
-    } else {
-        StashAccentPalette(
-            primary = 0xFF0E7490u.toLong(),
-            onPrimary = 0xFFFFFFFFu.toLong(),
-            primaryContainer = 0xFFCFFAFEu.toLong(),
-            onPrimaryContainer = 0xFF164E63u.toLong(),
-            secondary = 0xFF0F766Eu.toLong(),
-            onSecondary = 0xFFFFFFFFu.toLong(),
-            secondaryContainer = 0xFFE0F7FAu.toLong(),
-            onSecondaryContainer = 0xFF155E75u.toLong(),
-        )
-    }
-
-    StashAccentColor.Amber -> if (darkTheme) {
-        StashAccentPalette(
-            primary = 0xFFD97706u.toLong(),
-            onPrimary = 0xFF221A03u.toLong(),
-            primaryContainer = 0xFF78350Fu.toLong(),
-            onPrimaryContainer = 0xFFFEF3C7u.toLong(),
-            secondary = 0xFFF59E0Bu.toLong(),
-            onSecondary = 0xFF221A03u.toLong(),
-            secondaryContainer = 0xFF92400Eu.toLong(),
-            onSecondaryContainer = 0xFFFEF3C7u.toLong(),
-        )
-    } else {
-        StashAccentPalette(
-            primary = 0xFFB45309u.toLong(),
-            onPrimary = 0xFFFFFFFFu.toLong(),
-            primaryContainer = 0xFFFEF3C7u.toLong(),
-            onPrimaryContainer = 0xFF78350Fu.toLong(),
-            secondary = 0xFFCA8A04u.toLong(),
-            onSecondary = 0xFF221A03u.toLong(),
-            secondaryContainer = 0xFFFEF9C3u.toLong(),
-            onSecondaryContainer = 0xFF713F12u.toLong(),
-        )
-    }
-
-    StashAccentColor.Rose -> if (darkTheme) {
-        StashAccentPalette(
-            primary = 0xFFE11D48u.toLong(),
-            onPrimary = 0xFFFFFFFFu.toLong(),
-            primaryContainer = 0xFF881337u.toLong(),
-            onPrimaryContainer = 0xFFFFE4E6u.toLong(),
-            secondary = 0xFFFB7185u.toLong(),
-            onSecondary = 0xFF3F0713u.toLong(),
-            secondaryContainer = 0xFF9F1239u.toLong(),
-            onSecondaryContainer = 0xFFFFE4E6u.toLong(),
-        )
-    } else {
-        StashAccentPalette(
-            primary = 0xFFBE123Cu.toLong(),
-            onPrimary = 0xFFFFFFFFu.toLong(),
-            primaryContainer = 0xFFFFE4E6u.toLong(),
-            onPrimaryContainer = 0xFF881337u.toLong(),
-            secondary = 0xFFE11D48u.toLong(),
-            onSecondary = 0xFFFFFFFFu.toLong(),
-            secondaryContainer = 0xFFFFE4E6u.toLong(),
-            onSecondaryContainer = 0xFF9F1239u.toLong(),
-        )
-    }
+private fun StashAccentColor.palette(): StashAccentPalette = when (this) {
+    StashAccentColor.Purple -> StashAccentPalette(Color(0xFFB26BFF), Color(0xFF12051F), Color(0xFF3A1E5C), Color(0xFFF0E3FF))
+    StashAccentColor.Rose -> StashAccentPalette(Color(0xFFF472B6), Color(0xFF22030F), Color(0xFF5C1838), Color(0xFFFFE1EF))
+    StashAccentColor.Blue -> StashAccentPalette(Color(0xFF6AA9FF), Color(0xFF03132A), Color(0xFF17345C), Color(0xFFDDEBFF))
+    StashAccentColor.Amber -> StashAccentPalette(Color(0xFFFF9F43), Color(0xFF2A1300), Color(0xFF5C3410), Color(0xFFFFE8D2))
+    StashAccentColor.Cyan -> StashAccentPalette(Color(0xFF34D399), Color(0xFF022116), Color(0xFF0F4A36), Color(0xFFD4F7E9))
 }
 
-private fun ColorScheme.withStashAccent(
-    accentColor: StashAccentColor,
-    darkTheme: Boolean,
-): ColorScheme {
-    val palette = stashAccentPalette(accentColor, darkTheme)
-    return copy(
-        primary = Color(palette.primary),
-        onPrimary = Color(palette.onPrimary),
-        primaryContainer = Color(palette.primaryContainer),
-        onPrimaryContainer = Color(palette.onPrimaryContainer),
-        secondary = Color(palette.secondary),
-        onSecondary = Color(palette.onSecondary),
-        secondaryContainer = Color(palette.secondaryContainer),
-        onSecondaryContainer = Color(palette.onSecondaryContainer),
+private fun stashColorScheme(accent: StashAccentPalette): ColorScheme = darkColorScheme(
+    primary = accent.primary,
+    onPrimary = accent.onPrimary,
+    primaryContainer = accent.container,
+    onPrimaryContainer = accent.onContainer,
+    secondary = accent.primary,
+    onSecondary = accent.onPrimary,
+    secondaryContainer = StashyPalette.ContainerHigh,
+    onSecondaryContainer = StashyPalette.OnCanvas,
+    tertiary = StashyPalette.Star,
+    onTertiary = Color(0xFF221A03),
+    background = StashyPalette.Canvas,
+    onBackground = StashyPalette.OnCanvas,
+    surface = StashyPalette.Canvas,
+    onSurface = StashyPalette.OnCanvas,
+    surfaceVariant = StashyPalette.ContainerHigh,
+    onSurfaceVariant = StashyPalette.OnCanvasMuted,
+    surfaceTint = Color.Transparent,
+    surfaceBright = StashyPalette.ContainerHighest,
+    surfaceDim = StashyPalette.ContainerLowest,
+    surfaceContainerLowest = StashyPalette.ContainerLowest,
+    surfaceContainerLow = StashyPalette.ContainerLow,
+    surfaceContainer = StashyPalette.Container,
+    surfaceContainerHigh = StashyPalette.ContainerHigh,
+    surfaceContainerHighest = StashyPalette.ContainerHighest,
+    inverseSurface = StashyPalette.OnCanvas,
+    inverseOnSurface = StashyPalette.Canvas,
+    inversePrimary = accent.container,
+    outline = StashyPalette.Outline,
+    outlineVariant = StashyPalette.OutlineVariant,
+    error = StashyPalette.Error,
+    onError = StashyPalette.OnError,
+    errorContainer = StashyPalette.ErrorContainer,
+    onErrorContainer = StashyPalette.OnErrorContainer,
+    scrim = Color.Black,
+)
+
+/** The wallpaper's accent (Android 12+) on Stashy's own dark surfaces. */
+private fun wallpaperAccent(dynamic: ColorScheme) = StashAccentPalette(
+    primary = dynamic.primary,
+    onPrimary = dynamic.onPrimary,
+    container = dynamic.primaryContainer,
+    onContainer = dynamic.onPrimaryContainer,
+)
+
+/** Swatch shown next to each accent in Settings. */
+fun stashAccentSwatch(accentColor: StashAccentColor): Color = accentColor.palette().primary
+
+data class StashThemeColorSnapshot(
+    val backgroundArgb: Long,
+    val onSurfaceArgb: Long,
+    val onSurfaceVariantArgb: Long,
+    val primaryArgb: Long,
+    val onPrimaryArgb: Long,
+)
+
+fun stashThemeColorSnapshot(accentColor: StashAccentColor = StashAccentColor.default): StashThemeColorSnapshot {
+    val accent = accentColor.palette()
+    return StashThemeColorSnapshot(
+        backgroundArgb = StashyPalette.Canvas.argbLong(),
+        onSurfaceArgb = StashyPalette.OnCanvas.argbLong(),
+        onSurfaceVariantArgb = StashyPalette.OnCanvasMuted.argbLong(),
+        primaryArgb = accent.primary.argbLong(),
+        onPrimaryArgb = accent.onPrimary.argbLong(),
     )
 }
 
-data class StashThemeColorSnapshot(
-    val modeName: String,
-    val backgroundArgb: Long,
-    val surfaceArgb: Long,
-    val surfaceVariantArgb: Long,
-    val onSurfaceArgb: Long,
-    val onSurfaceVariantArgb: Long,
-    val outlineArgb: Long,
-    val primaryArgb: Long,
-    val onPrimaryArgb: Long,
-    val primaryContainerArgb: Long,
-    val onPrimaryContainerArgb: Long,
-    val secondaryArgb: Long,
-    val onSecondaryArgb: Long,
-    val secondaryContainerArgb: Long,
-    val onSecondaryContainerArgb: Long,
-    val tertiaryArgb: Long,
-    val onTertiaryArgb: Long,
-    val errorArgb: Long,
-    val onErrorArgb: Long,
-    val errorContainerArgb: Long,
-    val onErrorContainerArgb: Long,
-)
-
-fun stashThemeColorSnapshot(
-    darkTheme: Boolean,
-    accentColor: StashAccentColor = StashAccentColor.default,
-): StashThemeColorSnapshot {
-    val accentPalette = stashAccentPalette(accentColor, darkTheme)
-    return if (darkTheme) {
-        StashThemeColorSnapshot(
-            modeName = "dark:${accentColor.persistedValue}",
-            backgroundArgb = StashThemeArgb.DarkBackground.toArgbLong(),
-            surfaceArgb = StashThemeArgb.DarkSurface.toArgbLong(),
-            surfaceVariantArgb = StashThemeArgb.DarkSurfaceVariant.toArgbLong(),
-            onSurfaceArgb = StashThemeArgb.DarkOnSurface.toArgbLong(),
-            onSurfaceVariantArgb = StashThemeArgb.DarkOnSurfaceVariant.toArgbLong(),
-            outlineArgb = StashThemeArgb.DarkOutline.toArgbLong(),
-            primaryArgb = accentPalette.primary,
-            onPrimaryArgb = accentPalette.onPrimary,
-            primaryContainerArgb = accentPalette.primaryContainer,
-            onPrimaryContainerArgb = accentPalette.onPrimaryContainer,
-            secondaryArgb = accentPalette.secondary,
-            onSecondaryArgb = accentPalette.onSecondary,
-            secondaryContainerArgb = accentPalette.secondaryContainer,
-            onSecondaryContainerArgb = accentPalette.onSecondaryContainer,
-            tertiaryArgb = StashThemeArgb.DarkTertiary.toArgbLong(),
-            onTertiaryArgb = StashThemeArgb.DarkOnTertiary.toArgbLong(),
-            errorArgb = StashThemeArgb.DarkError.toArgbLong(),
-            onErrorArgb = StashThemeArgb.DarkOnError.toArgbLong(),
-            errorContainerArgb = StashThemeArgb.DarkErrorContainer.toArgbLong(),
-            onErrorContainerArgb = StashThemeArgb.DarkOnErrorContainer.toArgbLong(),
-        )
-    } else {
-        StashThemeColorSnapshot(
-            modeName = "light:${accentColor.persistedValue}",
-            backgroundArgb = StashThemeArgb.LightBackground.toArgbLong(),
-            surfaceArgb = StashThemeArgb.LightSurface.toArgbLong(),
-            surfaceVariantArgb = StashThemeArgb.LightSurfaceVariant.toArgbLong(),
-            onSurfaceArgb = StashThemeArgb.LightOnSurface.toArgbLong(),
-            onSurfaceVariantArgb = StashThemeArgb.LightOnSurfaceVariant.toArgbLong(),
-            outlineArgb = StashThemeArgb.LightOutline.toArgbLong(),
-            primaryArgb = accentPalette.primary,
-            onPrimaryArgb = accentPalette.onPrimary,
-            primaryContainerArgb = accentPalette.primaryContainer,
-            onPrimaryContainerArgb = accentPalette.onPrimaryContainer,
-            secondaryArgb = accentPalette.secondary,
-            onSecondaryArgb = accentPalette.onSecondary,
-            secondaryContainerArgb = accentPalette.secondaryContainer,
-            onSecondaryContainerArgb = accentPalette.onSecondaryContainer,
-            tertiaryArgb = StashThemeArgb.LightTertiary.toArgbLong(),
-            onTertiaryArgb = StashThemeArgb.LightOnTertiary.toArgbLong(),
-            errorArgb = StashThemeArgb.LightError.toArgbLong(),
-            onErrorArgb = StashThemeArgb.LightOnError.toArgbLong(),
-            errorContainerArgb = StashThemeArgb.LightErrorContainer.toArgbLong(),
-            onErrorContainerArgb = StashThemeArgb.LightOnErrorContainer.toArgbLong(),
-        )
-    }
-}
+private fun Color.argbLong(): Long = toArgb().toLong() and 0xFFFFFFFFL
 
 fun stashThemeContrastRatio(foregroundArgb: Long, backgroundArgb: Long): Double {
-    val foregroundLuminance = relativeLuminance(foregroundArgb)
-    val backgroundLuminance = relativeLuminance(backgroundArgb)
-    val lighter = maxOf(foregroundLuminance, backgroundLuminance)
-    val darker = minOf(foregroundLuminance, backgroundLuminance)
+    val lighter = maxOf(relativeLuminance(foregroundArgb), relativeLuminance(backgroundArgb))
+    val darker = minOf(relativeLuminance(foregroundArgb), relativeLuminance(backgroundArgb))
     return (lighter + 0.05) / (darker + 0.05)
 }
 
-private fun Long.toArgbLong(): Long = this and 0xFFFFFFFFL
-
 private fun relativeLuminance(argb: Long): Double {
-    val red = ((argb shr 16) and 0xFF) / 255.0
-    val green = ((argb shr 8) and 0xFF) / 255.0
-    val blue = (argb and 0xFF) / 255.0
-    return 0.2126 * red.toLinearChannel() +
-        0.7152 * green.toLinearChannel() +
-        0.0722 * blue.toLinearChannel()
+    fun channel(shift: Int): Double {
+        val c = ((argb shr shift) and 0xFF) / 255.0
+        return if (c <= 0.04045) c / 12.92 else Math.pow((c + 0.055) / 1.055, 2.4)
+    }
+    return 0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0)
 }
 
-private fun Double.toLinearChannel(): Double = if (this <= 0.04045) {
-    this / 12.92
-} else {
-    Math.pow((this + 0.055) / 1.055, 2.4)
-}
-
-private val StashMediaShapes = Shapes(
+/** Three radii and a pill: 8 for small parts (chips, thumbnails), 16 for cards, 28 for sheets and dialogs. */
+private val StashyShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(24.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(28.dp),
     extraLarge = RoundedCornerShape(28.dp),
 )
 
-private val MaterialYouShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(16.dp),
-    medium = RoundedCornerShape(22.dp),
-    large = RoundedCornerShape(28.dp),
-    extraLarge = RoundedCornerShape(32.dp),
+@OptIn(ExperimentalTextApi::class)
+private fun inter(weight: Int) = Font(
+    resId = R.font.inter_variable,
+    weight = FontWeight(weight),
+    variationSettings = FontVariation.Settings(FontVariation.weight(weight)),
 )
 
-/** Pure black with near-black layers, so media stands out like on Instagram / Threads. */
-private fun ColorScheme.asSocialDark(): ColorScheme = copy(
-    background = Color.Black,
-    surface = Color.Black,
-    surfaceContainerLowest = Color.Black,
-    surfaceContainerLow = Color(0xFF0A0A0C),
-    surfaceContainer = Color(0xFF0F0F12),
-    surfaceContainerHigh = Color(0xFF1A1A1F),
-    surfaceContainerHighest = Color(0xFF242429),
-    surfaceVariant = Color(0xFF1A1A1F),
-    onBackground = Color(0xFFF5F5F7),
-    onSurface = Color(0xFFF5F5F7),
-    onSurfaceVariant = Color(0xFFA1A1AA),
-    outline = Color(0xFF2E2E35),
-    outlineVariant = Color(0xFF1F1F24),
-)
+/** Inter, from a single variable font file. */
+val InterFamily = FontFamily(inter(400), inter(500), inter(600), inter(700), inter(800))
 
-/** Slightly heavier, tighter headings than the Material defaults. */
+/**
+ * Inter wants tighter tracking than Roboto: no positive letter spacing on body text, negative on large sizes.
+ * Digits are tabular everywhere so durations, counts and timestamps line up.
+ */
 private fun stashTypography(): Typography {
-    val base = Typography()
-    return base.copy(
-        headlineLarge = base.headlineLarge.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp),
-        headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.4).sp),
-        headlineSmall = base.headlineSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
-        titleLarge = base.titleLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp),
-        titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        titleSmall = base.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-        labelLarge = base.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-        labelMedium = base.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+    fun style(size: Int, line: Int, weight: FontWeight, tracking: Double = 0.0) = TextStyle(
+        fontFamily = InterFamily,
+        fontSize = size.sp,
+        lineHeight = line.sp,
+        fontWeight = weight,
+        letterSpacing = tracking.em,
+        fontFeatureSettings = "tnum",
+    )
+    return Typography(
+        displayLarge = style(48, 54, FontWeight.ExtraBold, -0.03),
+        displayMedium = style(40, 46, FontWeight.ExtraBold, -0.03),
+        displaySmall = style(34, 40, FontWeight.ExtraBold, -0.025),
+        headlineLarge = style(30, 36, FontWeight.ExtraBold, -0.02),
+        headlineMedium = style(26, 32, FontWeight.Bold, -0.02),
+        headlineSmall = style(22, 28, FontWeight.Bold, -0.015),
+        titleLarge = style(20, 26, FontWeight.Bold, -0.01),
+        titleMedium = style(16, 22, FontWeight.SemiBold, -0.005),
+        titleSmall = style(14, 20, FontWeight.SemiBold),
+        bodyLarge = style(16, 24, FontWeight.Normal),
+        bodyMedium = style(14, 20, FontWeight.Normal),
+        bodySmall = style(12, 16, FontWeight.Normal, 0.005),
+        labelLarge = style(14, 20, FontWeight.SemiBold),
+        labelMedium = style(12, 16, FontWeight.SemiBold, 0.01),
+        labelSmall = style(11, 14, FontWeight.SemiBold, 0.02),
     )
 }
 
 private val StashTypography = stashTypography()
 
 /**
- * @param darkTheme ignored in [StashUiStyle.SocialDark], which is always dark.
- * @param accentColor used by Social Dark, and by Material You on devices without wallpaper colors.
+ * Stashy is always dark. [uiStyle] only picks where the accent comes from: Stashy's own [accentColor], or
+ * the wallpaper on Android 12+ ([StashUiStyle.MaterialYou]).
  */
 @Composable
 fun StashPlayerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     accentColor: StashAccentColor = StashAccentColor.default,
     uiStyle: StashUiStyle = StashUiStyle.default,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val colorScheme = when (uiStyle) {
-        StashUiStyle.SocialDark -> MediaDarkColors.withStashAccent(accentColor = accentColor, darkTheme = true).asSocialDark()
-        StashUiStyle.MaterialYou -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        } else {
-            (if (darkTheme) MediaDarkColors else MediaLightColors).withStashAccent(accentColor = accentColor, darkTheme = darkTheme)
-        }
+    val useWallpaper = uiStyle == StashUiStyle.MaterialYou && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val colorScheme = remember(accentColor, useWallpaper, context) {
+        val accent = if (useWallpaper) wallpaperAccent(dynamicDarkColorScheme(context)) else accentColor.palette()
+        stashColorScheme(accent)
     }
-    val tokens = remember(uiStyle, colorScheme.primary, colorScheme.tertiary) {
-        stashStyleTokens(uiStyle, colorScheme.primary, colorScheme.tertiary)
-    }
+    val tokens = remember(colorScheme.primary) { stashStyleTokens(colorScheme.primary) }
     CompositionLocalProvider(LocalStashStyleTokens provides tokens) {
         MaterialTheme(
             colorScheme = colorScheme,
-            shapes = if (uiStyle == StashUiStyle.MaterialYou) MaterialYouShapes else StashMediaShapes,
+            shapes = StashyShapes,
             typography = StashTypography,
             content = content,
         )

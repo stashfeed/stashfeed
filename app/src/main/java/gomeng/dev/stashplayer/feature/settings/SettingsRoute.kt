@@ -86,6 +86,7 @@ import gomeng.dev.stashplayer.core.security.DeviceAuthenticationAvailability
 import gomeng.dev.stashplayer.core.ui.i18n.StashAppLanguage
 import gomeng.dev.stashplayer.core.ui.theme.StashAccentColor
 import gomeng.dev.stashplayer.core.ui.theme.StashUiStyle
+import gomeng.dev.stashplayer.core.ui.theme.stashAccentSwatch
 import gomeng.dev.stashplayer.core.ui.theme.StashThemeMode
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScale
 import gomeng.dev.stashplayer.core.ui.theme.stashThemeColorSnapshot
@@ -2037,24 +2038,6 @@ private fun AppearanceSettingsContent() {
     }
 
     SettingsRadioGroupCard(
-        title = ThemeModeSettingCopy.title,
-        description = ThemeModeSettingCopy.description,
-    ) {
-        ThemeModeSettingCopy.options.forEach { option ->
-            SettingsRadioRow(
-                selected = themeMode == option.mode,
-                label = option.label,
-                description = option.description,
-                onClick = {
-                    coroutineScope.launch {
-                        repository.setThemeMode(option.mode)
-                    }
-                },
-            )
-        }
-    }
-
-    SettingsRadioGroupCard(
         title = AccentColorSettingCopy.title,
         description = AccentColorSettingCopy.description,
     ) {
@@ -2063,7 +2046,7 @@ private fun AppearanceSettingsContent() {
                 selected = accentColor == option.accentColor,
                 label = option.label,
                 description = option.description,
-                swatchColor = Color(stashThemeColorSnapshot(darkTheme = false, accentColor = option.accentColor).primaryArgb),
+                swatchColor = stashAccentSwatch(option.accentColor),
                 onClick = {
                     coroutineScope.launch {
                         repository.setAccentColor(option.accentColor)
