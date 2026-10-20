@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Stash Player</string>
+    <string name="app_name">Stashy</string>
     <string name="navigation_home_label">首页</string>
     <string name="navigation_browse_label">浏览</string>
     <string name="navigation_explore_label">探索</string>
@@ -337,7 +337,7 @@
     <string name="settings_accent_color_title">默认颜色</string>
     <string name="settings_accent_color_description">选择用于主按钮、选定状态和突出显示的应用程序重音。</string>
     <string name="settings_accent_color_purple_label">紫色的</string>
-    <string name="settings_accent_color_purple_description">使用当前默认的 Stash Player 颜色。</string>
+    <string name="settings_accent_color_purple_description">使用当前默认的 Stashy 颜色。</string>
     <string name="settings_accent_color_blue_label">蓝色的</string>
     <string name="settings_accent_color_blue_description">使用平静、清晰的蓝色调。</string>
     <string name="settings_accent_color_cyan_label">青色</string>
@@ -379,7 +379,7 @@
     <string name="settings_debug_log_empty">尚未记录任何日志。</string>
     <string name="settings_debug_log_copy_button">复制</string>
     <string name="settings_debug_log_clear_button">清除</string>
-    <string name="settings_debug_log_clipboard_label">Stash Player 调试日志</string>
+    <string name="settings_debug_log_clipboard_label">Stashy 调试日志</string>
     <string name="settings_debug_log_copy_complete">将日志复制到剪贴板。</string>
     <string name="settings_debug_log_clear_complete">已清除日志。</string>
     <string name="settings_support_version_title">版本</string>
@@ -476,7 +476,7 @@
     <string name="settings_biometric_app_lock_enabled_status">应用程序锁已打开。</string>
     <string name="settings_biometric_app_lock_disabled_status">应用程序锁定已关闭。</string>
     <string name="settings_recent_apps_privacy_title">Stash最近的应用程序预览</string>
-    <string name="settings_recent_apps_privacy_description">从 Android 最近的应用程序中Stash Stash Player 预览。在 Android 12 及更低版本上，屏幕截图和屏幕录制也可能被阻止。</string>
+    <string name="settings_recent_apps_privacy_description">从 Android 最近的应用程序中Stash Stashy 预览。在 Android 12 及更低版本上，屏幕截图和屏幕录制也可能被阻止。</string>
     <string name="setup_auth_mode_link_only_label">仅通过链接连接</string>
     <string name="setup_auth_mode_link_only_description">连接到禁用身份验证的 Stash 服务器，无需 API Key 或 ID/密码。</string>
     <string name="setup_auth_mode_api_key_label">与 API Key 连接</string>
@@ -490,7 +490,7 @@
     <string name="setup_biometric_offer_description">在打开保存的 Stash 连接之前，需要设备指纹、面部、PIN、图案或设备凭证。</string>
     <string name="setup_biometric_offer_enable_button">打开</string>
     <string name="setup_biometric_offer_later_button">之后</string>
-    <string name="biometric_prompt_title">解锁Stash Player</string>
+    <string name="biometric_prompt_title">解锁Stashy</string>
     <string name="biometric_prompt_failed">身份验证不匹配。</string>
     <string name="biometric_lock_title">应用程序已锁定</string>
     <string name="biometric_lock_description">打开保存的 Stash 连接之前需要进行设备身份验证。</string>

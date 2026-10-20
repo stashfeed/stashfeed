@@ -85,6 +85,7 @@ import gomeng.dev.stashplayer.core.player.coerceSubtitleFontScale
 import gomeng.dev.stashplayer.core.security.DeviceAuthenticationAvailability
 import gomeng.dev.stashplayer.core.ui.i18n.StashAppLanguage
 import gomeng.dev.stashplayer.core.ui.theme.StashAccentColor
+import gomeng.dev.stashplayer.core.ui.theme.StashUiStyle
 import gomeng.dev.stashplayer.core.ui.theme.StashThemeMode
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScale
 import gomeng.dev.stashplayer.core.ui.theme.stashThemeColorSnapshot
@@ -2012,7 +2013,28 @@ private fun AppearanceSettingsContent() {
     val uiScale by repository.uiScale.collectAsState(
         initial = StashSettingsRepository.DEFAULT_UI_SCALE,
     )
+    val uiStyle by repository.uiStyle.collectAsState(initial = StashUiStyle.default)
     val coroutineScope = rememberCoroutineScope()
+
+    SettingsRadioGroupCard(
+        title = R.string.settings_ui_style_title,
+        description = R.string.settings_ui_style_description,
+    ) {
+        StashUiStyle.entries.forEach { style ->
+            SettingsRadioRow(
+                selected = uiStyle == style,
+                label = when (style) {
+                    StashUiStyle.SocialDark -> R.string.settings_ui_style_social_label
+                    StashUiStyle.MaterialYou -> R.string.settings_ui_style_material_label
+                },
+                description = when (style) {
+                    StashUiStyle.SocialDark -> R.string.settings_ui_style_social_description
+                    StashUiStyle.MaterialYou -> R.string.settings_ui_style_material_description
+                },
+                onClick = { coroutineScope.launch { repository.setUiStyle(style) } },
+            )
+        }
+    }
 
     SettingsRadioGroupCard(
         title = ThemeModeSettingCopy.title,

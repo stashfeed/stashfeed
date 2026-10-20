@@ -55,6 +55,7 @@ import gomeng.dev.stashplayer.core.network.StashServerProfile
 import gomeng.dev.stashplayer.core.network.buildStashThumbnailRequestSpec
 import gomeng.dev.stashplayer.core.player.AspectRatioMode
 import gomeng.dev.stashplayer.core.player.StashPlayerController
+import gomeng.dev.stashplayer.core.player.stashReelPreloadPolicy
 import gomeng.dev.stashplayer.core.ui.components.rememberStashThumbnailModel
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 import gomeng.dev.stashplayer.feature.performers.PerformerImage
@@ -93,7 +94,7 @@ internal fun HomeStoryViewer(
     val headers = remember(serverProfile) {
         serverProfile?.let { profile -> profile.authHeadersFor(profile.graphQlUrl()) }.orEmpty()
     }
-    val controller = remember(context, headers) { StashPlayerController(context, headers) }
+    val controller = remember(context, headers) { StashPlayerController(context, headers, stashReelPreloadPolicy()) }
     DisposableEffect(controller) { onDispose { controller.release() } }
     BackHandler(onBack = onDismiss)
 

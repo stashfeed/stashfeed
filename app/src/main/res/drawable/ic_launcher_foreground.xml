@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stashy "S" monogram: a faint back layer and a pink-purple-blue front layer, inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.72" android:scaleY="0.72">
+        <group android:translateX="-6" android:translateY="-4">
+            <path
+                android:pathData="M76,38c0,-7 -7,-12 -16,-12s-17,5 -17,13c0,9 9,12 17,14s18,6 18,15 -8,14 -18,14 -17,-5 -17,-12"
+                android:strokeColor="#A855F7"
+                android:strokeAlpha="0.35"
+                android:strokeWidth="11"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round" />
+        </group>
+        <group android:translateX="1" android:translateY="3">
+            <path
+                android:pathData="M76,38c0,-7 -7,-12 -16,-12s-17,5 -17,13c0,9 9,12 17,14s18,6 18,15 -8,14 -18,14 -17,-5 -17,-12"
+                android:strokeWidth="11"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round">
+                <aapt:attr name="android:strokeColor">
+                    <gradient
+                        android:type="linear"
+                        android:startX="37"
+                        android:startY="26"
+                        android:endX="77"
+                        android:endY="92">
+                        <item android:color="#F472B6" android:offset="0" />
+                        <item android:color="#A855F7" android:offset="0.5" />
+                        <item android:color="#6AA9FF" android:offset="1" />
+                    </gradient>
+                </aapt:attr>
+            </path>
+        </group>
+    </group>
+</vector>

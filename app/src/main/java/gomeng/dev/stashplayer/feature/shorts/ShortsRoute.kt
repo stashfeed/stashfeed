@@ -105,8 +105,12 @@ import gomeng.dev.stashplayer.core.ui.components.rememberStashThumbnailModel
 import gomeng.dev.stashplayer.core.ui.components.SceneBulkDeleteConfirmationDialog
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 import gomeng.dev.stashplayer.feature.player.PlayerSurface
+import gomeng.dev.stashplayer.core.ui.theme.LocalStashStyleTokens
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+/** Wait for the pager to settle before releasing / pre-creating players. */
+private const val SHORTS_POOL_SETTLE_DELAY_MS = 450L
 
 /** How many scenes the chain picks per batch; small so later picks use fresher signals. */
 private const val FOR_YOU_CHAINED_BATCH_SIZE = 8
@@ -467,18 +471,19 @@ fun ShortsRoute(
             LaunchedEffect(activeItem?.scene?.id, windowSceneIds, retryToken, pool) {
                 val activePool = pool ?: return@LaunchedEffect
                 val activeScene = activeItem?.scene ?: return@LaunchedEffect
-                activePool.releaseOutside(windowSceneIds.toSet())
                 activePool.ensurePrepared(scene = activeScene, active = true)
                 activePool.activate(activeScene.id)
                 poolRevision += 1
+                // Releasing a player blocks the UI thread briefly and creating one costs a few frames, so both
+                // wait until the swipe animation has settled. A quick next swipe cancels this and tries again.
+                delay(SHORTS_POOL_SETTLE_DELAY_MS)
+                activePool.releaseOutside(windowSceneIds.toSet())
                 val prewarmIds = shortsPrewarmSceneIds(feedState.items, feedState.activeIndex).toSet()
                 val prewarmItems = feedState.items.filter { it.scene.id in prewarmIds }
                 prewarmItems.forEach { item ->
-                    launch {
-                        activePool.ensurePrepared(scene = item.scene, active = false)
-                        activePool.activate(activeScene.id)
-                        poolRevision += 1
-                    }
+                    activePool.ensurePrepared(scene = item.scene, active = false)
+                    activePool.activate(activeScene.id)
+                    poolRevision += 1
                 }
             }
 
@@ -489,22 +494,24 @@ fun ShortsRoute(
             ) {
                 VerticalPager(
                     state = pagerState,
+                    // Build the next page before it scrolls in, so its video view isn't created mid-swipe.
+                    beyondViewportPageCount = 1,
+                    key = { page -> feedState.items.getOrNull(page)?.scene?.id ?: page },
                     modifier = Modifier.fillMaxSize(),
                 ) { page ->
                     val item = feedState.items[page]
                     val isActive = page == feedState.activeIndex
-                    val activeController = if (isActive) {
-                        poolRevision
-                        pool?.controllerFor(item.scene.id)
-                    } else {
-                        null
-                    }
+                    poolRevision
+                    // Pre-warmed scenes already own a player: attach its surface early (shows the first frame).
+                    val surfaceController = pool?.controllerFor(item.scene.id)
+                    val activeController = if (isActive) surfaceController else null
                     val stream = if (isActive) pool?.streamFor(item.scene.id) else null
                     val error = if (isActive) pool?.errorFor(item.scene.id) else null
                     ShortsPage(
                         item = item,
                         serverProfile = activeProfile,
                         activeController = activeController,
+                        surfaceController = surfaceController,
                         streamTitle = stream?.title,
                         errorMessage = error,
                         isActive = isActive,
@@ -718,6 +725,7 @@ private fun ShortsPage(
     item: gomeng.dev.stashplayer.core.model.ShortsFeedItem,
     serverProfile: gomeng.dev.stashplayer.core.network.StashServerProfile,
     activeController: gomeng.dev.stashplayer.core.player.StashPlayerController?,
+    surfaceController: gomeng.dev.stashplayer.core.player.StashPlayerController?,
     streamTitle: String?,
     errorMessage: String?,
     isActive: Boolean,
@@ -814,9 +822,10 @@ private fun ShortsPage(
             .fillMaxSize()
             .background(Color.Black),
     ) {
-        if (activeController != null) {
+        val renderController = activeController ?: surfaceController
+        if (renderController != null) {
             PlayerSurface(
-                controller = activeController,
+                controller = renderController,
                 aspectRatioMode = AspectRatioMode.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -1029,6 +1038,12 @@ private fun ShortsActionRail(
     onOpenFull: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Material You puts each action on a tonal circle; Social Dark keeps bare icons over the video.
+    val railButton = if (LocalStashStyleTokens.current.isSocial) {
+        Modifier
+    } else {
+        Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f), CircleShape)
+    }
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -1036,7 +1051,7 @@ private fun ShortsActionRail(
     ) {
         ForYouOCounterButton(count = oCounter, onIncrement = onIncrementO, onDecrement = onDecrementO)
         ForYouRatingButton(rating100 = rating100, onClick = onRate)
-        IconButton(onClick = onOpenFull) {
+        IconButton(onClick = onOpenFull, modifier = railButton) {
             Icon(
                 imageVector = Icons.Outlined.OpenInFull,
                 contentDescription = stashString(R.string.for_you_open_full),
@@ -1046,7 +1061,7 @@ private fun ShortsActionRail(
         shortsActionRailButtons().forEach { button ->
             when (button) {
                 ShortsActionRailButton.Like -> {
-                    IconButton(onClick = onLike) {
+                    IconButton(onClick = onLike, modifier = railButton) {
                         Icon(
                             imageVector = Icons.Outlined.Favorite,
                             contentDescription = if (liked) {
@@ -1059,7 +1074,7 @@ private fun ShortsActionRail(
                     }
                 }
                 ShortsActionRailButton.NotInterested -> {
-                    IconButton(onClick = onNotInterested) {
+                    IconButton(onClick = onNotInterested, modifier = railButton) {
                         Icon(
                             imageVector = Icons.Outlined.ThumbDown,
                             contentDescription = if (notInterested) {
@@ -1072,7 +1087,7 @@ private fun ShortsActionRail(
                     }
                 }
                 ShortsActionRailButton.Delete -> {
-                    IconButton(onClick = onDelete) {
+                    IconButton(onClick = onDelete, modifier = railButton) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = stashString(R.string.shorts_delete_content_description),

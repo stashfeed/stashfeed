@@ -7,6 +7,11 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.net.Uri
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.People
@@ -26,9 +31,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemColors
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemColors
 import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -86,11 +93,14 @@ import gomeng.dev.stashplayer.core.network.StashSettingsRepository
 import gomeng.dev.stashplayer.core.network.passwordSessionStartupRefreshKey
 import gomeng.dev.stashplayer.core.network.shouldRefreshPasswordSessionOnStartup
 import gomeng.dev.stashplayer.core.player.PlaybackOrientationMode
+import gomeng.dev.stashplayer.core.ui.theme.LocalStashStyleTokens
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScale
 import gomeng.dev.stashplayer.core.ui.theme.StashUiScaleProvider
 import gomeng.dev.stashplayer.feature.gallery.GalleryDetailRoute
 import gomeng.dev.stashplayer.feature.gallery.GalleryPhotoViewerOverlay
 import gomeng.dev.stashplayer.feature.gallery.GalleryRoute
+import gomeng.dev.stashplayer.feature.feed.FeedLightbox
+import gomeng.dev.stashplayer.feature.feed.FeedLightboxRequest
 import gomeng.dev.stashplayer.feature.feed.HomeFeedRoute
 import gomeng.dev.stashplayer.feature.home.HomeRoute
 import gomeng.dev.stashplayer.feature.library.LibraryRoute
@@ -112,12 +122,13 @@ private enum class TopLevelDestination(
     val route: String,
     val labelRes: Int,
     val icon: ImageVector,
+    val selectedIcon: ImageVector,
 ) {
-    Home("home", topLevelDestinationLabelResource("home"), Icons.Outlined.Home),
-    ForYou("shorts", topLevelDestinationLabelResource("shorts"), Icons.Outlined.PlayCircle),
-    Explore("browse", topLevelDestinationLabelResource("browse"), Icons.Outlined.Explore),
-    Performers("performers", topLevelDestinationLabelResource("performers"), Icons.Outlined.People),
-    Library("library", topLevelDestinationLabelResource("library"), Icons.Outlined.VideoLibrary),
+    Home("home", topLevelDestinationLabelResource("home"), Icons.Outlined.Home, Icons.Filled.Home),
+    ForYou("shorts", topLevelDestinationLabelResource("shorts"), Icons.Outlined.PlayCircle, Icons.Filled.PlayCircle),
+    Explore("browse", topLevelDestinationLabelResource("browse"), Icons.Outlined.Explore, Icons.Filled.Explore),
+    Performers("performers", topLevelDestinationLabelResource("performers"), Icons.Outlined.People, Icons.Filled.People),
+    Library("library", topLevelDestinationLabelResource("library"), Icons.Outlined.VideoLibrary, Icons.Filled.VideoLibrary),
 }
 
 /** Screens that used to be tabs; they now open from Explore or Library. */
@@ -135,13 +146,60 @@ private fun TopLevelDestinationIcon(
     destination: TopLevelDestination,
     label: String,
     showBadge: Boolean,
+    selected: Boolean = false,
 ) {
+    val icon = if (selected) destination.selectedIcon else destination.icon
     if (showBadge) {
         BadgedBox(badge = { Badge() }) {
-            androidx.compose.material3.Icon(destination.icon, contentDescription = label)
+            androidx.compose.material3.Icon(icon, contentDescription = label)
         }
     } else {
-        androidx.compose.material3.Icon(destination.icon, contentDescription = label)
+        androidx.compose.material3.Icon(icon, contentDescription = label)
+    }
+}
+
+/** Social Dark: plain icons, no pill. Material You: the standard tonal pill. */
+@Composable
+private fun stashNavigationBarItemColors(): NavigationBarItemColors {
+    val scheme = MaterialTheme.colorScheme
+    return if (LocalStashStyleTokens.current.navUsesPill) {
+        NavigationBarItemDefaults.colors(
+            selectedIconColor = scheme.onSecondaryContainer,
+            selectedTextColor = scheme.onSurface,
+            indicatorColor = scheme.secondaryContainer,
+            unselectedIconColor = scheme.onSurfaceVariant,
+            unselectedTextColor = scheme.onSurfaceVariant,
+        )
+    } else {
+        NavigationBarItemDefaults.colors(
+            selectedIconColor = scheme.onSurface,
+            selectedTextColor = scheme.onSurface,
+            indicatorColor = Color.Transparent,
+            unselectedIconColor = scheme.onSurfaceVariant,
+            unselectedTextColor = scheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun stashNavigationRailItemColors(): NavigationRailItemColors {
+    val scheme = MaterialTheme.colorScheme
+    return if (LocalStashStyleTokens.current.navUsesPill) {
+        NavigationRailItemDefaults.colors(
+            selectedIconColor = scheme.onSecondaryContainer,
+            selectedTextColor = scheme.onSurface,
+            indicatorColor = scheme.secondaryContainer,
+            unselectedIconColor = scheme.onSurfaceVariant,
+            unselectedTextColor = scheme.onSurfaceVariant,
+        )
+    } else {
+        NavigationRailItemDefaults.colors(
+            selectedIconColor = scheme.onSurface,
+            selectedTextColor = scheme.onSurface,
+            indicatorColor = scheme.surfaceContainerHigh,
+            unselectedIconColor = scheme.onSurfaceVariant,
+            unselectedTextColor = scheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -176,6 +234,7 @@ fun StashNavHost(
     var availableUpdateNotice by remember { mutableStateOf<AppUpdateNotice?>(null) }
     var updateChangelogNotice by remember { mutableStateOf<AppUpdateNotice?>(null) }
     var activeGalleryPhotoViewer by remember { mutableStateOf<ActiveGalleryPhotoViewer?>(null) }
+    var activeFeedLightbox by remember { mutableStateOf<FeedLightboxRequest?>(null) }
     val navigationChromePolicy = stashNavigationChromeVisualPolicy()
     val activeUiScale = if (isPlayerRoute(currentRoute)) StashUiScale.Default else uiScale
     val activity = remember(context) { context.findActivity() }
@@ -397,10 +456,17 @@ fun StashNavHost(
                 snackbarHost = { SnackbarHost(snackbarHostState) },
                 bottomBar = {
                     if (shouldShowBottomNavigation(currentRoute, isFoldLikeLayout)) {
-                        val navigationDividerColor = navigationChromePolicy.dividerRole.toNavigationChromeColor()
-                            .copy(alpha = navigationChromePolicy.dividerAlpha)
-                        val navigationContainerColor = navigationChromePolicy.containerRole.toNavigationChromeColor()
-                            .copy(alpha = navigationChromePolicy.containerAlpha)
+                        val styleTokens = LocalStashStyleTokens.current
+                        val navigationDividerColor = if (styleTokens.isSocial) {
+                            MaterialTheme.colorScheme.outlineVariant
+                        } else {
+                            Color.Transparent
+                        }
+                        val navigationContainerColor = if (styleTokens.isSocial) {
+                            MaterialTheme.colorScheme.background
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        }
                         NavigationBar(
                             modifier = Modifier
                                 .drawBehind {
@@ -417,8 +483,9 @@ fun StashNavHost(
                         ) {
                             topLevelDestinations.forEach { destination ->
                                 val destinationLabel = stringResource(destination.labelRes)
+                                val selected = isTopLevelDestinationSelected(currentRoute, currentDestination?.hierarchy?.map { it.route }, destination)
                                 NavigationBarItem(
-                                    selected = isTopLevelDestinationSelected(currentRoute, currentDestination?.hierarchy?.map { it.route }, destination),
+                                    selected = selected,
                                     onClick = {
                                         navigateTopLevel(destination)
                                     },
@@ -428,9 +495,10 @@ fun StashNavHost(
                                             label = destinationLabel,
                                             showBadge = destination == TopLevelDestination.Library &&
                                                 availableUpdateNotice != null,
+                                            selected = selected,
                                         )
                                     },
-                                    colors = navigationChromePolicy.navigationBarItemColors(),
+                                    colors = stashNavigationBarItemColors(),
                                     label = {
                                         Text(
                                             destinationLabel,
@@ -451,13 +519,17 @@ fun StashNavHost(
                 }
                 if (shouldShowNavigationRail(currentRoute, isFoldLikeLayout)) {
                     NavigationRail(
-                        containerColor = navigationChromePolicy.containerRole.toNavigationChromeColor()
-                            .copy(alpha = navigationChromePolicy.containerAlpha),
+                        containerColor = if (LocalStashStyleTokens.current.isSocial) {
+                            MaterialTheme.colorScheme.background
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        },
                     ) {
                         topLevelDestinations.forEach { destination ->
                             val destinationLabel = stringResource(destination.labelRes)
+                            val selected = isTopLevelDestinationSelected(currentRoute, currentDestination?.hierarchy?.map { it.route }, destination)
                             NavigationRailItem(
-                                selected = isTopLevelDestinationSelected(currentRoute, currentDestination?.hierarchy?.map { it.route }, destination),
+                                selected = selected,
                                 onClick = {
                                     navigateTopLevel(destination)
                                 },
@@ -467,9 +539,10 @@ fun StashNavHost(
                                         label = destinationLabel,
                                         showBadge = destination == TopLevelDestination.Library &&
                                             availableUpdateNotice != null,
+                                        selected = selected,
                                     )
                                 },
-                                colors = navigationChromePolicy.navigationRailItemColors(),
+                                colors = stashNavigationRailItemColors(),
                                 label = { Text(destinationLabel) },
                             )
                         }
@@ -504,6 +577,7 @@ fun StashNavHost(
                     composable(TopLevelDestination.Home.route) {
                         HomeFeedRoute(
                             isFoldLikeLayout = isFoldLikeLayout,
+                            onOpenLightbox = { request -> activeFeedLightbox = request },
                             onOpenScene = { sceneId, scenes -> openPlaybackQueueScene(sceneId = sceneId, scenes = scenes) },
                             onOpenGallery = { galleryId -> navController.navigate(galleryDetailRouteForGallery(galleryId)) },
                             onOpenPerformer = { performerId ->
@@ -726,6 +800,13 @@ fun StashNavHost(
                 }
             }
         }
+            activeFeedLightbox?.let { request ->
+                FeedLightbox(
+                    request = request,
+                    serverProfile = runtimeProfile,
+                    onDismiss = { activeFeedLightbox = null },
+                )
+            }
             activeGalleryPhotoViewer?.let { viewer ->
                 GalleryPhotoViewerOverlay(
                     images = viewer.images,

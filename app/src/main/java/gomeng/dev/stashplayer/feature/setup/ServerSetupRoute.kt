@@ -43,6 +43,7 @@ import gomeng.dev.stashplayer.feature.security.rememberDeviceAuthenticationAvail
 import gomeng.dev.stashplayer.feature.security.rememberDeviceAuthenticationLauncher
 import kotlinx.coroutines.launch
 import gomeng.dev.stashplayer.R
+import androidx.compose.ui.res.stringResource
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
 
 @Composable
@@ -122,7 +123,7 @@ fun ServerSetupRoute(
             .padding(if (isFoldLikeLayout) 32.dp else 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text("Stash Player", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium)
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(

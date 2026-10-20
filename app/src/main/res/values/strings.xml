@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Stash Player</string>
+    <string name="app_name">Stashy</string>
     <string name="navigation_home_label">Home</string>
     <string name="navigation_browse_label">Browse</string>
     <string name="navigation_explore_label">Explore</string>
@@ -337,7 +337,7 @@
     <string name="settings_accent_color_title">Default color</string>
     <string name="settings_accent_color_description">Choose the app accent used for primary buttons, selected states, and highlights.</string>
     <string name="settings_accent_color_purple_label">Purple</string>
-    <string name="settings_accent_color_purple_description">Use the current default Stash Player color.</string>
+    <string name="settings_accent_color_purple_description">Use the current default Stashy color.</string>
     <string name="settings_accent_color_blue_label">Blue</string>
     <string name="settings_accent_color_blue_description">Use a calm, clear blue accent.</string>
     <string name="settings_accent_color_cyan_label">Cyan</string>
@@ -379,7 +379,7 @@
     <string name="settings_debug_log_empty">No logs recorded yet.</string>
     <string name="settings_debug_log_copy_button">Copy</string>
     <string name="settings_debug_log_clear_button">Clear</string>
-    <string name="settings_debug_log_clipboard_label">Stash Player debug log</string>
+    <string name="settings_debug_log_clipboard_label">Stashy debug log</string>
     <string name="settings_debug_log_copy_complete">Copied logs to the clipboard.</string>
     <string name="settings_debug_log_clear_complete">Cleared logs.</string>
     <string name="settings_support_version_title">Version</string>
@@ -476,7 +476,7 @@
     <string name="settings_biometric_app_lock_enabled_status">App lock is on.</string>
     <string name="settings_biometric_app_lock_disabled_status">App lock is off.</string>
     <string name="settings_recent_apps_privacy_title">Hide recent apps preview</string>
-    <string name="settings_recent_apps_privacy_description">Hide the Stash Player preview from Android recent apps. On Android 12 and below, screenshots and screen recording may also be blocked.</string>
+    <string name="settings_recent_apps_privacy_description">Hide the Stashy preview from Android recent apps. On Android 12 and below, screenshots and screen recording may also be blocked.</string>
     <string name="setup_auth_mode_link_only_label">Connect with link only</string>
     <string name="setup_auth_mode_link_only_description">Connect to a Stash server with auth disabled, without an API Key or ID/password.</string>
     <string name="setup_auth_mode_api_key_label">Connect with API Key</string>
@@ -490,7 +490,7 @@
     <string name="setup_biometric_offer_description">Require the device fingerprint, face, PIN, pattern, or device credential before opening the saved Stash connection.</string>
     <string name="setup_biometric_offer_enable_button">Turn on</string>
     <string name="setup_biometric_offer_later_button">Later</string>
-    <string name="biometric_prompt_title">Unlock Stash Player</string>
+    <string name="biometric_prompt_title">Unlock Stashy</string>
     <string name="biometric_prompt_failed">Authentication did not match.</string>
     <string name="biometric_lock_title">App locked</string>
     <string name="biometric_lock_description">Device authentication is required before opening your saved Stash connection.</string>

@@ -1,10 +1,19 @@
 package gomeng.dev.stashplayer.core.ui.theme
 
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -377,18 +386,77 @@ private val StashMediaShapes = Shapes(
     extraLarge = RoundedCornerShape(28.dp),
 )
 
+private val MaterialYouShapes = Shapes(
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(16.dp),
+    medium = RoundedCornerShape(22.dp),
+    large = RoundedCornerShape(28.dp),
+    extraLarge = RoundedCornerShape(32.dp),
+)
+
+/** Pure black with near-black layers, so media stands out like on Instagram / Threads. */
+private fun ColorScheme.asSocialDark(): ColorScheme = copy(
+    background = Color.Black,
+    surface = Color.Black,
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = Color(0xFF0A0A0C),
+    surfaceContainer = Color(0xFF0F0F12),
+    surfaceContainerHigh = Color(0xFF1A1A1F),
+    surfaceContainerHighest = Color(0xFF242429),
+    surfaceVariant = Color(0xFF1A1A1F),
+    onBackground = Color(0xFFF5F5F7),
+    onSurface = Color(0xFFF5F5F7),
+    onSurfaceVariant = Color(0xFFA1A1AA),
+    outline = Color(0xFF2E2E35),
+    outlineVariant = Color(0xFF1F1F24),
+)
+
+/** Slightly heavier, tighter headings than the Material defaults. */
+private fun stashTypography(): Typography {
+    val base = Typography()
+    return base.copy(
+        headlineLarge = base.headlineLarge.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.5).sp),
+        headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.4).sp),
+        headlineSmall = base.headlineSmall.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp),
+        titleLarge = base.titleLarge.copy(fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp),
+        titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        titleSmall = base.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+        labelLarge = base.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+        labelMedium = base.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+    )
+}
+
+private val StashTypography = stashTypography()
+
+/**
+ * @param darkTheme ignored in [StashUiStyle.SocialDark], which is always dark.
+ * @param accentColor used by Social Dark, and by Material You on devices without wallpaper colors.
+ */
 @Composable
 fun StashPlayerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     accentColor: StashAccentColor = StashAccentColor.default,
+    uiStyle: StashUiStyle = StashUiStyle.default,
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(
-        colorScheme = (if (darkTheme) MediaDarkColors else MediaLightColors).withStashAccent(
-            accentColor = accentColor,
-            darkTheme = darkTheme,
-        ),
-        shapes = StashMediaShapes,
-        content = content,
-    )
+    val context = LocalContext.current
+    val colorScheme = when (uiStyle) {
+        StashUiStyle.SocialDark -> MediaDarkColors.withStashAccent(accentColor = accentColor, darkTheme = true).asSocialDark()
+        StashUiStyle.MaterialYou -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        } else {
+            (if (darkTheme) MediaDarkColors else MediaLightColors).withStashAccent(accentColor = accentColor, darkTheme = darkTheme)
+        }
+    }
+    val tokens = remember(uiStyle, colorScheme.primary, colorScheme.tertiary) {
+        stashStyleTokens(uiStyle, colorScheme.primary, colorScheme.tertiary)
+    }
+    CompositionLocalProvider(LocalStashStyleTokens provides tokens) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            shapes = if (uiStyle == StashUiStyle.MaterialYou) MaterialYouShapes else StashMediaShapes,
+            typography = StashTypography,
+            content = content,
+        )
+    }
 }

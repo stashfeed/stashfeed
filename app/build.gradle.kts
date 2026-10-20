@@ -85,14 +85,28 @@ android {
         }
 
         release {
-            if (hasReleaseSigningConfig) {
-                signingConfig = signingConfigs.getByName("release")
+            // Without release keys (local builds) sign with the debug key so the optimized build can be
+            // installed for testing; CI provides the real keys through the environment.
+            signingConfig = if (hasReleaseSigningConfig) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
             }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+
+        // Release-optimized (not debuggable) but installs over the debug app, for measuring smoothness.
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-benchmark"
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
         }
     }
 
@@ -123,6 +137,8 @@ dependencies {
     androidTestImplementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.13.1")
+    // Installs the baseline profile (src/main/baseline-prof.txt) on sideloaded APKs too.
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.biometric:biometric:1.1.0")

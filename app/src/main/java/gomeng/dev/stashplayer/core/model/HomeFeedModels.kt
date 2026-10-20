@@ -78,6 +78,9 @@ data class FeedScene(
     val animatedPreviewUrl: String? = null,
     val createdAt: String,
     val date: String? = null,
+    /** Video frame size, for showing the post in its real aspect ratio. */
+    val width: Int? = null,
+    val height: Int? = null,
 )
 
 data class FeedGallery(

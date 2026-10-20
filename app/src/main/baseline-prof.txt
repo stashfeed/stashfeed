@@ -1,0 +1,12 @@
+# Ahead-of-time compile the app's own screens so the first scroll through the feed and reel is smooth.
+# Rule syntax: https://developer.android.com/topic/performance/baselineprofiles/manually-create-measure
+HSPLgomeng/dev/stashplayer/feature/feed/**;->**(**)**
+HSPLgomeng/dev/stashplayer/feature/shorts/**;->**(**)**
+HSPLgomeng/dev/stashplayer/feature/performers/**;->**(**)**
+HSPLgomeng/dev/stashplayer/app/**;->**(**)**
+HSPLgomeng/dev/stashplayer/core/ui/**;->**(**)**
+HSPLgomeng/dev/stashplayer/core/model/**;->**(**)**
+HSPLgomeng/dev/stashplayer/core/network/**;->**(**)**
+Lgomeng/dev/stashplayer/feature/feed/**;
+Lgomeng/dev/stashplayer/feature/shorts/**;
+Lgomeng/dev/stashplayer/core/ui/**;

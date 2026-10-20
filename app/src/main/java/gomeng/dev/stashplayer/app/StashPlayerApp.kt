@@ -40,6 +40,7 @@ import gomeng.dev.stashplayer.core.security.resolveRecentsPrivacyProtection
 import gomeng.dev.stashplayer.core.ui.i18n.updateStashStringContext
 import gomeng.dev.stashplayer.core.ui.i18n.withStashAppLanguage
 import gomeng.dev.stashplayer.core.ui.theme.StashPlayerTheme
+import gomeng.dev.stashplayer.core.ui.theme.StashUiStyle
 import gomeng.dev.stashplayer.core.ui.theme.resolveStashDarkTheme
 import gomeng.dev.stashplayer.feature.security.BiometricAppLockGate
 
@@ -63,6 +64,10 @@ class StashPlayerApp : Application(), ImageLoaderFactory {
                 add(GifDecoder.Factory())
             }
         }
+        // Short fade instead of images popping in while scrolling.
+        .crossfade(150)
+        // Stash marks thumbnails no-cache; reusing the disk cache keeps feeds smooth and saves data.
+        .respectCacheHeaders(false)
         .build()
 }
 
@@ -81,6 +86,7 @@ fun StashPlayerAppRoot() {
     val accentColor by repository.accentColor.collectAsState(
         initial = StashSettingsRepository.DEFAULT_ACCENT_COLOR,
     )
+    val uiStyle by repository.uiStyle.collectAsState(initial = StashUiStyle.default)
     val uiScale by repository.uiScale.collectAsState(
         initial = StashSettingsRepository.DEFAULT_UI_SCALE,
     )
@@ -103,7 +109,8 @@ fun StashPlayerAppRoot() {
         localizedContext.resources.configuration
     }
     updateStashStringContext(localizedContext)
-    val darkTheme = resolveStashDarkTheme(themeMode, isSystemInDarkTheme())
+    // Social Dark is dark by definition; Material You follows the theme mode setting.
+    val darkTheme = uiStyle == StashUiStyle.SocialDark || resolveStashDarkTheme(themeMode, isSystemInDarkTheme())
     val isFoldLikeLayout = isFoldLikeLayoutBySmallestWidthDp(deviceConfiguration.smallestScreenWidthDp)
     val activity = remember(context, localView) {
         context.findActivity() ?: localView.context.findActivity()
@@ -121,9 +128,15 @@ fun StashPlayerAppRoot() {
         StashPlayerTheme(
             darkTheme = darkTheme,
             accentColor = accentColor,
+            uiStyle = uiStyle,
         ) {
             val background = MaterialTheme.colorScheme.background
-            val glowColor = MaterialTheme.colorScheme.primary.copy(alpha = if (darkTheme) 0.18f else 0.09f)
+            // Social Dark stays pure black; the soft accent glow belongs to the Material look.
+            val glowColor = if (uiStyle == StashUiStyle.SocialDark) {
+                Color.Transparent
+            } else {
+                MaterialTheme.colorScheme.primary.copy(alpha = if (darkTheme) 0.12f else 0.06f)
+            }
             Surface(
                 modifier = Modifier
                     .fillMaxSize()

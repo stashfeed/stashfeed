@@ -118,6 +118,8 @@ internal fun parseHomeFeedScenesResponse(json: String, resolveUrl: (String) -> S
             animatedPreviewUrl = paths?.optTrimmedString("webp")?.let(resolveUrl),
             createdAt = createdAt,
             date = scene.optTrimmedString("date"),
+            width = file?.optIntOrNull("width"),
+            height = file?.optIntOrNull("height"),
         )
     }
 

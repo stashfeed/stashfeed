@@ -26,8 +26,8 @@ import java.io.File
 class StashPlayerController(
     context: Context,
     requestHeaders: Map<String, String> = emptyMap(),
+    private val preloadPolicy: StashPlayerPreloadPolicy = stashPlayerPreloadPolicy(),
 ) {
-    private val preloadPolicy = stashPlayerPreloadPolicy()
     private val appContext = context.applicationContext
     private val httpDataSourceFactory = DefaultHttpDataSource.Factory()
         .setAllowCrossProtocolRedirects(true)

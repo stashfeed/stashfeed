@@ -20,6 +20,7 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import gomeng.dev.stashplayer.core.ui.theme.StashUiStyle
 import gomeng.dev.stashplayer.core.model.DEFAULT_STASH_GALLERY_GRID_PAGE_SIZE
 import gomeng.dev.stashplayer.core.model.GalleryPhotoDisplayMode
 import gomeng.dev.stashplayer.core.model.StashGalleryBrowseMode
@@ -103,6 +104,14 @@ class StashSettingsRepository(private val context: Context) {
 
     val appLanguage: Flow<StashAppLanguage> = context.stashSettingsDataStore.data.map { prefs ->
         appLanguageFromPersistedValue(prefs[Keys.AppLanguage])
+    }
+
+    val uiStyle: Flow<StashUiStyle> = context.stashSettingsDataStore.data.map { prefs ->
+        StashUiStyle.fromPersistedValue(prefs[Keys.UiStyle])
+    }
+
+    suspend fun setUiStyle(style: StashUiStyle) {
+        context.stashSettingsDataStore.edit { prefs -> prefs[Keys.UiStyle] = style.persistedValue }
     }
 
     val accentColor: Flow<StashAccentColor> = context.stashSettingsDataStore.data.map { prefs ->
@@ -390,6 +399,7 @@ class StashSettingsRepository(private val context: Context) {
         val ThemeMode = stringPreferencesKey("theme_mode")
         val AppLanguage = stringPreferencesKey("app_language")
         val AccentColor = stringPreferencesKey("accent_color")
+        val UiStyle = stringPreferencesKey("ui_style")
         val UiScale = stringPreferencesKey("ui_scale")
         val DefaultStreamPreference = stringPreferencesKey("default_stream_preference")
         val PlaybackEndAction = stringPreferencesKey("playback_end_action")

@@ -1,14 +1,19 @@
 package gomeng.dev.stashplayer.feature.feed
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import gomeng.dev.stashplayer.core.model.FeedGallery
+import gomeng.dev.stashplayer.core.model.GalleryImageModel
+import gomeng.dev.stashplayer.core.model.SceneCardModel
+import gomeng.dev.stashplayer.core.model.StashSortDirection
 import gomeng.dev.stashplayer.core.model.FeedScene
 import gomeng.dev.stashplayer.core.model.HomeFeed
 import gomeng.dev.stashplayer.core.model.HomeFeedFilter
+import gomeng.dev.stashplayer.core.model.HomeFeedItem
 import gomeng.dev.stashplayer.core.model.HomeFeedSettings
 import gomeng.dev.stashplayer.core.model.buildHomeFeed
 import gomeng.dev.stashplayer.core.network.HomeFeedWindowField
@@ -36,7 +41,21 @@ private data class HomeFeedSource(
     val windowStartDate: String,
 )
 
+/** Plugin page size for a gallery's photos in the feed. */
+private const val FEED_GALLERY_PAGE_SIZE = 60
+
+data class FeedGalleryImages(
+    val images: List<GalleryImageModel> = emptyList(),
+    val nextPage: Int = 1,
+    val hasMore: Boolean = true,
+    val isLoading: Boolean = false,
+)
+
 internal class HomeFeedViewModel : ViewModel() {
+    /** Photos per gallery post, loaded when the post first scrolls into view. */
+    val galleryImages = mutableStateMapOf<String, FeedGalleryImages>()
+    var actionError by mutableStateOf<String?>(null)
+
     var state by mutableStateOf<HomeFeedState>(HomeFeedState.Loading)
         private set
     var filter by mutableStateOf(HomeFeedFilter())
@@ -53,7 +72,11 @@ internal class HomeFeedViewModel : ViewModel() {
      * Loads the window when the server, window length or filter changed; other settings (genders, hidden
      * kinds, folders) only rebuild the feed from what is already loaded.
      */
+    private var profile: StashServerProfile? = null
+
     fun bind(profile: StashServerProfile, newSettings: HomeFeedSettings, force: Boolean = false) {
+        if (profile != this.profile) galleryImages.clear()
+        this.profile = profile
         settings = newSettings
         val key = listOf(profile, newSettings.lookbackDays, filter)
         if (!force && key == sourceKey) {
@@ -103,4 +126,86 @@ internal class HomeFeedViewModel : ViewModel() {
     }
 
     private fun HomeFeedSource.toFeed(): HomeFeed = buildHomeFeed(scenes, galleries, settings, windowStartDate)
+
+    /** Every scene in feed order, so the player can continue through the feed. */
+    fun playableScenes(): List<SceneCardModel> = (state as? HomeFeedState.Ready)?.feed?.items.orEmpty().flatMap { item ->
+        when (item) {
+            is HomeFeedItem.Post -> listOf(item.scene.scene)
+            is HomeFeedItem.Pack -> item.scenes.map { it.scene }
+            is HomeFeedItem.GalleryPost -> emptyList()
+        }
+    }
+
+    fun ensureGalleryImages(galleryId: String) {
+        if (galleryImages[galleryId] == null) loadMoreGalleryImages(galleryId)
+    }
+
+    fun loadMoreGalleryImages(galleryId: String) {
+        val activeProfile = profile ?: return
+        val current = galleryImages[galleryId] ?: FeedGalleryImages()
+        if (current.isLoading || !current.hasMore) return
+        galleryImages[galleryId] = current.copy(isLoading = true)
+        viewModelScope.launch {
+            val result = runCatching {
+                StashGraphQlClient(activeProfile).findGalleryImagesPage(
+                    galleryId = galleryId,
+                    perPage = FEED_GALLERY_PAGE_SIZE,
+                    page = current.nextPage,
+                    sort = "path",
+                    direction = StashSortDirection.Asc,
+                )
+            }
+            val latest = galleryImages[galleryId] ?: current
+            galleryImages[galleryId] = result.fold(
+                onSuccess = { page ->
+                    val merged = (latest.images + page.images).distinctBy { it.id }
+                    latest.copy(
+                        images = merged,
+                        nextPage = current.nextPage + 1,
+                        hasMore = page.images.isNotEmpty() && merged.size < page.totalCount,
+                        isLoading = false,
+                    )
+                },
+                // Keep what loaded; a failed page just stops the carousel from growing.
+                onFailure = { latest.copy(isLoading = false, hasMore = false) },
+            )
+        }
+    }
+
+    fun rateScene(sceneId: String, rating100: Int?) {
+        updateScene(sceneId) { it.copy(rating100 = rating100) }
+        runSceneAction { client -> client.updateSceneRating(sceneId, rating100) }
+    }
+
+    fun addO(sceneId: String) {
+        updateScene(sceneId) { it.copy(oCounter = (it.oCounter ?: 0) + 1) }
+        runSceneAction { client -> client.addO(sceneId).also { count -> updateScene(sceneId) { it.copy(oCounter = count) } } }
+    }
+
+    fun removeO(sceneId: String) {
+        val current = source?.scenes?.firstOrNull { it.scene.id == sceneId }?.scene?.oCounter ?: 0
+        if (current <= 0) return
+        updateScene(sceneId) { it.copy(oCounter = current - 1) }
+        runSceneAction { client -> client.deleteO(sceneId).also { count -> updateScene(sceneId) { it.copy(oCounter = count) } } }
+    }
+
+    /** Applies a change to every copy of the scene in the loaded window and rebuilds the feed. */
+    private fun updateScene(sceneId: String, transform: (SceneCardModel) -> SceneCardModel) {
+        val loaded = source ?: return
+        source = loaded.copy(
+            scenes = loaded.scenes.map { feedScene ->
+                if (feedScene.scene.id == sceneId) feedScene.copy(scene = transform(feedScene.scene)) else feedScene
+            },
+        )
+        source?.let { state = HomeFeedState.Ready(it.toFeed()) }
+    }
+
+    private fun runSceneAction(action: suspend (StashGraphQlClient) -> Unit) {
+        val activeProfile = profile ?: return
+        viewModelScope.launch {
+            runCatching { action(StashGraphQlClient(activeProfile)) }.onFailure { throwable ->
+                actionError = redactStashCredentialText(throwable.message ?: throwable::class.simpleName.orEmpty())
+            }
+        }
+    }
 }

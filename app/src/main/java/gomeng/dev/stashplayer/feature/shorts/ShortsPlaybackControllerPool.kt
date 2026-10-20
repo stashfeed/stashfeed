@@ -8,6 +8,7 @@ import gomeng.dev.stashplayer.core.network.StashStream
 import gomeng.dev.stashplayer.core.network.StashStreamResolver
 import gomeng.dev.stashplayer.core.network.redactStashCredentialText
 import gomeng.dev.stashplayer.core.player.StashPlayerController
+import gomeng.dev.stashplayer.core.player.stashReelPreloadPolicy
 
 internal data class ShortsPreparedPlayback(
     val sceneId: String,
@@ -61,6 +62,7 @@ internal class ShortsPlaybackControllerPool(
             val controller = StashPlayerController(
                 context = context,
                 requestHeaders = stream.requestHeaders,
+                preloadPolicy = stashReelPreloadPolicy(),
             )
             val listener = object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {

@@ -33,6 +33,20 @@ fun stashPlayerPreloadPolicy(): StashPlayerPreloadPolicy = StashPlayerPreloadPol
     prioritizeTimeOverSizeThresholds = true,
 )
 
+/**
+ * Lean policy for the For You reel and stories, which keep up to three players alive at once. The full policy
+ * above lets one player hold up to 192 MB on the Java heap, so three of them run the app out of memory.
+ * Same disk cache as the main player, so a scene opened full screen reuses what the reel fetched.
+ */
+fun stashReelPreloadPolicy(): StashPlayerPreloadPolicy = stashPlayerPreloadPolicy().copy(
+    minBufferMs = 15_000,
+    maxBufferMs = 30_000,
+    bufferForPlaybackMs = 500,
+    bufferForPlaybackAfterRebufferMs = 1_000,
+    targetBufferBytes = (32L * MIB_BYTES).toInt(),
+    prioritizeTimeOverSizeThresholds = false,
+)
+
 fun sanitizedStashMediaCacheKey(rawUrl: String): String {
     val trimmed = rawUrl.trim()
     if (trimmed.isBlank()) return trimmed

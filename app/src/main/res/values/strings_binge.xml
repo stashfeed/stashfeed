@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Strings for features added on top of stash-player-android (Binge-style performers, feed, navigation). -->
 <resources>
+    <!-- Appearance -->
+    <string name="settings_ui_style_title">Style</string>
+    <string name="settings_ui_style_description">The overall look of Stashy.</string>
+    <string name="settings_ui_style_social_label">Social Dark</string>
+    <string name="settings_ui_style_social_description">Pure black, edge-to-edge media, pink-to-blue accents. Always dark.</string>
+    <string name="settings_ui_style_material_label">Material You</string>
+    <string name="settings_ui_style_material_description">Colors from your wallpaper and soft rounded cards. Follows the theme setting below.</string>
+
     <!-- Navigation -->
     <string name="navigation_for_you_label">For You</string>
     <string name="navigation_performers_label">Performers</string>
@@ -45,6 +53,12 @@
     <string name="home_story_mute">Mute</string>
     <string name="home_story_unmute">Unmute</string>
     <string name="home_story_watch_full">Watch full scene</string>
+    <string name="home_feed_open">Open</string>
+    <string name="home_feed_open_gallery">Open gallery</string>
+    <string name="home_feed_gallery_kind">Gallery</string>
+    <string name="home_feed_view_gallery">View gallery</string>
+    <string name="home_feed_photo_count">%1$d photos</string>
+    <string name="feed_lightbox_counter">%1$d / %2$d</string>
     <string name="home_feed_kind_posts">Posts</string>
     <string name="home_feed_kind_reposts">Reposts</string>
     <string name="home_feed_kind_packs">Packs</string>
