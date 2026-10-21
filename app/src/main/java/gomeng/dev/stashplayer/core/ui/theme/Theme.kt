@@ -26,10 +26,10 @@ import androidx.compose.ui.unit.sp
 import gomeng.dev.stashplayer.R
 
 /**
- * Stashy's one look: a near-black, slightly cool canvas, layered surfaces for depth, and one accent color.
+ * Stashfeed's one look: a near-black, slightly cool canvas, layered surfaces for depth, and one accent color.
  * Media sits edge to edge on top of it, so the surfaces stay quiet.
  */
-private object StashyPalette {
+private object StashfeedPalette {
     val Canvas = Color(0xFF0B0B0F)
     val ContainerLowest = Color(0xFF060609)
     val ContainerLow = Color(0xFF111116)
@@ -70,37 +70,37 @@ private fun stashColorScheme(accent: StashAccentPalette): ColorScheme = darkColo
     onPrimaryContainer = accent.onContainer,
     secondary = accent.primary,
     onSecondary = accent.onPrimary,
-    secondaryContainer = StashyPalette.ContainerHigh,
-    onSecondaryContainer = StashyPalette.OnCanvas,
-    tertiary = StashyPalette.Star,
+    secondaryContainer = StashfeedPalette.ContainerHigh,
+    onSecondaryContainer = StashfeedPalette.OnCanvas,
+    tertiary = StashfeedPalette.Star,
     onTertiary = Color(0xFF221A03),
-    background = StashyPalette.Canvas,
-    onBackground = StashyPalette.OnCanvas,
-    surface = StashyPalette.Canvas,
-    onSurface = StashyPalette.OnCanvas,
-    surfaceVariant = StashyPalette.ContainerHigh,
-    onSurfaceVariant = StashyPalette.OnCanvasMuted,
+    background = StashfeedPalette.Canvas,
+    onBackground = StashfeedPalette.OnCanvas,
+    surface = StashfeedPalette.Canvas,
+    onSurface = StashfeedPalette.OnCanvas,
+    surfaceVariant = StashfeedPalette.ContainerHigh,
+    onSurfaceVariant = StashfeedPalette.OnCanvasMuted,
     surfaceTint = Color.Transparent,
-    surfaceBright = StashyPalette.ContainerHighest,
-    surfaceDim = StashyPalette.ContainerLowest,
-    surfaceContainerLowest = StashyPalette.ContainerLowest,
-    surfaceContainerLow = StashyPalette.ContainerLow,
-    surfaceContainer = StashyPalette.Container,
-    surfaceContainerHigh = StashyPalette.ContainerHigh,
-    surfaceContainerHighest = StashyPalette.ContainerHighest,
-    inverseSurface = StashyPalette.OnCanvas,
-    inverseOnSurface = StashyPalette.Canvas,
+    surfaceBright = StashfeedPalette.ContainerHighest,
+    surfaceDim = StashfeedPalette.ContainerLowest,
+    surfaceContainerLowest = StashfeedPalette.ContainerLowest,
+    surfaceContainerLow = StashfeedPalette.ContainerLow,
+    surfaceContainer = StashfeedPalette.Container,
+    surfaceContainerHigh = StashfeedPalette.ContainerHigh,
+    surfaceContainerHighest = StashfeedPalette.ContainerHighest,
+    inverseSurface = StashfeedPalette.OnCanvas,
+    inverseOnSurface = StashfeedPalette.Canvas,
     inversePrimary = accent.container,
-    outline = StashyPalette.Outline,
-    outlineVariant = StashyPalette.OutlineVariant,
-    error = StashyPalette.Error,
-    onError = StashyPalette.OnError,
-    errorContainer = StashyPalette.ErrorContainer,
-    onErrorContainer = StashyPalette.OnErrorContainer,
+    outline = StashfeedPalette.Outline,
+    outlineVariant = StashfeedPalette.OutlineVariant,
+    error = StashfeedPalette.Error,
+    onError = StashfeedPalette.OnError,
+    errorContainer = StashfeedPalette.ErrorContainer,
+    onErrorContainer = StashfeedPalette.OnErrorContainer,
     scrim = Color.Black,
 )
 
-/** The wallpaper's accent (Android 12+) on Stashy's own dark surfaces. */
+/** The wallpaper's accent (Android 12+) on Stashfeed's own dark surfaces. */
 private fun wallpaperAccent(dynamic: ColorScheme) = StashAccentPalette(
     primary = dynamic.primary,
     onPrimary = dynamic.onPrimary,
@@ -122,9 +122,9 @@ data class StashThemeColorSnapshot(
 fun stashThemeColorSnapshot(accentColor: StashAccentColor = StashAccentColor.default): StashThemeColorSnapshot {
     val accent = accentColor.palette()
     return StashThemeColorSnapshot(
-        backgroundArgb = StashyPalette.Canvas.argbLong(),
-        onSurfaceArgb = StashyPalette.OnCanvas.argbLong(),
-        onSurfaceVariantArgb = StashyPalette.OnCanvasMuted.argbLong(),
+        backgroundArgb = StashfeedPalette.Canvas.argbLong(),
+        onSurfaceArgb = StashfeedPalette.OnCanvas.argbLong(),
+        onSurfaceVariantArgb = StashfeedPalette.OnCanvasMuted.argbLong(),
         primaryArgb = accent.primary.argbLong(),
         onPrimaryArgb = accent.onPrimary.argbLong(),
     )
@@ -147,7 +147,7 @@ private fun relativeLuminance(argb: Long): Double {
 }
 
 /** Three radii and a pill: 8 for small parts (chips, thumbnails), 16 for cards, 28 for sheets and dialogs. */
-private val StashyShapes = Shapes(
+private val StashfeedShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(8.dp),
     medium = RoundedCornerShape(16.dp),
@@ -200,7 +200,7 @@ private fun stashTypography(): Typography {
 private val StashTypography = stashTypography()
 
 /**
- * Stashy is always dark. [uiStyle] only picks where the accent comes from: Stashy's own [accentColor], or
+ * Stashfeed is always dark. [uiStyle] only picks where the accent comes from: Stashfeed's own [accentColor], or
  * the wallpaper on Android 12+ ([StashUiStyle.MaterialYou]).
  */
 @Composable
@@ -219,7 +219,7 @@ fun StashPlayerTheme(
     CompositionLocalProvider(LocalStashStyleTokens provides tokens) {
         MaterialTheme(
             colorScheme = colorScheme,
-            shapes = StashyShapes,
+            shapes = StashfeedShapes,
             typography = StashTypography,
             content = content,
         )

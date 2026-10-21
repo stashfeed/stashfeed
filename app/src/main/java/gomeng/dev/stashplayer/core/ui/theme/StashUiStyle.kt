@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Where the accent color comes from (Settings › Appearance). The look itself is always Stashy's dark design;
+ * Where the accent color comes from (Settings › Appearance). The look itself is always Stashfeed's dark design;
  * the persisted values stay as they were so existing settings carry over.
  */
 enum class StashUiStyle(val persistedValue: String) {

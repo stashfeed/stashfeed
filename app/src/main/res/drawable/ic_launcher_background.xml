@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Stashy's canvas with a soft violet glow behind the monogram, so the icon reads as lit rather than flat. -->
+<!-- Stashfeed's canvas with a soft violet glow behind the monogram, so the icon reads as lit rather than flat. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"

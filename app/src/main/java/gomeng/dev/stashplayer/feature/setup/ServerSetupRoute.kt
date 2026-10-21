@@ -153,7 +153,7 @@ fun ServerSetupRoute(
                     .background(MaterialTheme.colorScheme.surfaceContainer, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Image(painter = painterResource(R.drawable.ic_stashy_mark), contentDescription = null, modifier = Modifier.size(44.dp))
+                Image(painter = painterResource(R.drawable.ic_stashfeed_mark), contentDescription = null, modifier = Modifier.size(44.dp))
             }
             Text(stashString(R.string.setup_welcome_title), style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
             Text(

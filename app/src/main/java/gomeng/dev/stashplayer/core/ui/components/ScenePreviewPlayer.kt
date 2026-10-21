@@ -71,7 +71,7 @@ class ScenePreviewController(context: Context, private val headers: Map<String, 
                             clipEndMs = fallback.startMs + PREVIEW_FALLBACK_LENGTH_MS,
                         )
                     } else {
-                        Log.w("StashyPreview", "Preview of scene $activeSceneId failed: ${error.errorCodeName}")
+                        Log.w("StashfeedPreview", "Preview of scene $activeSceneId failed: ${error.errorCodeName}")
                     }
                 }
             },

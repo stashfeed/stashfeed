@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Stashy</string>
+    <string name="app_name">Stashfeed</string>
     <string name="navigation_home_label">首頁</string>
     <string name="navigation_browse_label">瀏覽</string>
     <string name="navigation_explore_label">探索</string>
@@ -337,7 +337,7 @@
     <string name="settings_accent_color_title">預設顏色</string>
     <string name="settings_accent_color_description">選擇用於主按鈕、選定狀態和反白顯示的應用程式重音。</string>
     <string name="settings_accent_color_purple_label">紫色</string>
-    <string name="settings_accent_color_purple_description">使用目前預設的Stashy顏色。</string>
+    <string name="settings_accent_color_purple_description">使用目前預設的Stashfeed顏色。</string>
     <string name="settings_accent_color_blue_label">藍色</string>
     <string name="settings_accent_color_blue_description">使用平靜、清晰的藍色調。</string>
     <string name="settings_accent_color_cyan_label">青色</string>
@@ -379,7 +379,7 @@
     <string name="settings_debug_log_empty">尚未記錄任何日誌。</string>
     <string name="settings_debug_log_copy_button">複製</string>
     <string name="settings_debug_log_clear_button">清除</string>
-    <string name="settings_debug_log_clipboard_label">Stashy調試日誌</string>
+    <string name="settings_debug_log_clipboard_label">Stashfeed調試日誌</string>
     <string name="settings_debug_log_copy_complete">將日誌複製到剪貼簿。</string>
     <string name="settings_debug_log_clear_complete">已清除日誌。</string>
     <string name="settings_support_version_title">版本</string>
@@ -476,7 +476,7 @@
     <string name="settings_biometric_app_lock_enabled_status">應用程式鎖已開啟。</string>
     <string name="settings_biometric_app_lock_disabled_status">應用程式鎖定已關閉。</string>
     <string name="settings_recent_apps_privacy_title">Stash最近的應用程式預覽</string>
-    <string name="settings_recent_apps_privacy_description">從 Android 最近的應用程式中Stash Stashy 預覽。在Android 12及以下版本上，截圖和螢幕錄製也可能被阻止。</string>
+    <string name="settings_recent_apps_privacy_description">從 Android 最近的應用程式中Stash Stashfeed 預覽。在Android 12及以下版本上，截圖和螢幕錄製也可能被阻止。</string>
     <string name="setup_auth_mode_link_only_label">僅透過連結連接</string>
     <string name="setup_auth_mode_link_only_description">連接到停用身份驗證的 Stash 伺服器，無需 API Key 或 ID/密碼。</string>
     <string name="setup_auth_mode_api_key_label">聯絡API Key</string>
@@ -490,7 +490,7 @@
     <string name="setup_biometric_offer_description">在開啟已儲存的 Stash 連接之前，需要裝置指紋、臉部、PIN、圖案或裝置憑證。</string>
     <string name="setup_biometric_offer_enable_button">打開</string>
     <string name="setup_biometric_offer_later_button">後來</string>
-    <string name="biometric_prompt_title">解鎖Stashy</string>
+    <string name="biometric_prompt_title">解鎖Stashfeed</string>
     <string name="biometric_prompt_failed">身份驗證不符。</string>
     <string name="biometric_lock_title">應用程式已鎖定</string>
     <string name="biometric_lock_description">在開啟已儲存的 Stash 連線之前需要進行裝置身份驗證。</string>

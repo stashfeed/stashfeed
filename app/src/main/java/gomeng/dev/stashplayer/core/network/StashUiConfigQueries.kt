@@ -7,24 +7,24 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Stash's UI configuration is a free-form JSON object the web UI keeps its own settings in. Stashy stores its
- * synced state under the `stashy` key there, so it follows the user across devices without a server plugin.
+ * Stash's UI configuration is a free-form JSON object the web UI keeps its own settings in. Stashfeed stores its
+ * synced state under the `stashfeed` key there, so it follows the user across devices without a server plugin.
  */
 internal val UI_CONFIG_QUERY = """
-    query StashyUiConfig {
+    query StashfeedUiConfig {
       configuration { ui }
     }
 """
 
-/** Key of Stashy's seen Home-feed posts inside the UI configuration. */
-internal const val UI_KEY_SEEN_FEED_POSTS = "stashy.seenFeedPosts"
+/** Key of Stashfeed's seen Home-feed posts inside the UI configuration. */
+internal const val UI_KEY_SEEN_FEED_POSTS = "stashfeed.seenFeedPosts"
 
 internal fun parseUiConfigResponse(json: String): JSONObject =
     parseGraphQlData(json).optJSONObject("configuration")?.optJSONObject("ui") ?: JSONObject()
 
-/** Reads `ui.stashy.seenFeedPosts`: post key → the post's added date (`yyyy-MM-dd`), used for pruning. */
+/** Reads `ui.stashfeed.seenFeedPosts`: post key → the post's added date (`yyyy-MM-dd`), used for pruning. */
 internal fun JSONObject.seenFeedPosts(): Map<String, String> {
-    val seen = optJSONObject("stashy")?.optJSONObject("seenFeedPosts") ?: return emptyMap()
+    val seen = optJSONObject("stashfeed")?.optJSONObject("seenFeedPosts") ?: return emptyMap()
     return seen.keys().asSequence().mapNotNull { key ->
         seen.optString(key).takeIf { it.isNotBlank() }?.let { key to it }
     }.toMap()
@@ -45,7 +45,7 @@ fun parseJsonObjectToMap(json: String): Map<String, Any?> {
 }
 
 internal val FIND_SAVED_FILTERS_QUERY = """
-    query StashySavedFilters(${'$'}mode: FilterMode!) {
+    query StashfeedSavedFilters(${'$'}mode: FilterMode!) {
       findSavedFilters(mode: ${'$'}mode) {
         id
         name

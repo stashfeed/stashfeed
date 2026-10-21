@@ -8,12 +8,12 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
-// Release signing secrets live outside the repo: ~/.stashy/keystore.properties (or the file named by
-// STASHY_KEYSTORE_PROPERTIES). Entries in local.properties win over it.
+// Release signing secrets live outside the repo: ~/.stashfeed/keystore.properties (or the file named by
+// STASHFEED_KEYSTORE_PROPERTIES). Entries in local.properties win over it.
 val localProperties = Properties().apply {
-    val signingFile = providers.environmentVariable("STASHY_KEYSTORE_PROPERTIES").orNull
+    val signingFile = providers.environmentVariable("STASHFEED_KEYSTORE_PROPERTIES").orNull
         ?.let(::File)
-        ?: File(System.getProperty("user.home"), ".stashy/keystore.properties")
+        ?: File(System.getProperty("user.home"), ".stashfeed/keystore.properties")
     listOf(signingFile, rootProject.file("local.properties"))
         .filter { it.isFile }
         .forEach { file -> file.inputStream().use(::load) }
@@ -36,7 +36,7 @@ val releaseSigningKeyPassword = environmentVariable("ANDROID_SIGNING_KEY_PASSWOR
     ?: localProperty("ANDROID_SIGNING_KEY_PASSWORD", "android.signing.keyPassword", "keyPassword")
 val localReleaseSigningKeystoreFile = localProperty("ANDROID_SIGNING_KEYSTORE_FILE", "android.signing.storeFile", "storeFile")
     ?.let { rootProject.file(it) }
-    ?: rootProject.file("stashy-release.jks")
+    ?: rootProject.file("stashfeed-release.jks")
 val generatedReleaseSigningKeystoreFile = layout.buildDirectory.file("signing/release-keystore.jks").get().asFile
 val releaseSigningKeystoreFile = if (releaseSigningKeystoreBase64 != null) {
     generatedReleaseSigningKeystoreFile
@@ -61,7 +61,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "app.stashy"
+        applicationId = "app.stashfeed"
         minSdk = 29
         targetSdk = 35
         versionCode = 1

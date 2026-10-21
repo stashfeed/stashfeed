@@ -507,7 +507,7 @@ private fun HomeFeedHeader(
         modifier = Modifier.padding(top = StashSpace.XS),
         titleContent = {
             Image(
-                painter = painterResource(R.drawable.ic_stashy_mark),
+                painter = painterResource(R.drawable.ic_stashfeed_mark),
                 contentDescription = null,
                 modifier = Modifier.size(30.dp),
             )

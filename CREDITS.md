@@ -1,25 +1,25 @@
 # Credits
 
-Stashy stands on the work of other people. Thank you to everyone below.
+Stashfeed stands on the work of other people. Thank you to everyone below.
 
 ## Stash
 
 **[stashapp/stash](https://github.com/stashapp/stash)** by the [Stash team and contributors](https://github.com/stashapp/stash/graphs/contributors)
 · [stashapp.cc](https://stashapp.cc) · [Documentation](https://docs.stashapp.cc) · AGPL-3.0
 
-Stash is the self-hosted organiser that Stashy is a client for. Everything Stashy shows (scenes, performers, galleries,
+Stash is the self-hosted organiser that Stashfeed is a client for. Everything Stashfeed shows (scenes, performers, galleries,
 images, tags, ratings, saved filters, previews and sprites) comes from a Stash server through its GraphQL API.
 Without Stash there would be nothing to build an app for.
 
-Stashy contains no Stash source code; it only talks to a server you run yourself.
+Stashfeed contains no Stash source code; it only talks to a server you run yourself.
 
 ## stash-player-android
 
 **[gomeng-dev/stash-player-android](https://github.com/gomeng-dev/stash-player-android)** by [gomeng-dev](https://github.com/gomeng-dev) · MIT
 
-Stashy is a fork of stash-player-android. Its foundations come from there: the Stash connection and sign-in, the
+Stashfeed is a fork of stash-player-android. Its foundations come from there: the Stash connection and sign-in, the
 player with gestures, subtitles, stream selection and picture-in-picture, the queue and on-device lists, galleries and
-images, saved filters, and the project setup itself. Stashy adds the feed, the For You reel, performer profiles and the
+images, saved filters, and the project setup itself. Stashfeed adds the feed, the For You reel, performer profiles and the
 redesign on top of that base. The original copyright notice is kept in [LICENSE](LICENSE), as the MIT license
 requires, and the project's full history is preserved in this repository.
 
@@ -30,18 +30,18 @@ gomeng-dev also wrote [stash-recommendation-server](https://github.com/gomeng-de
 
 **[ordureconnoisseur/binge](https://github.com/ordureconnoisseur/binge)** by [ordureconnoisseur](https://github.com/ordureconnoisseur) · AGPL-3.0
 
-Binge is the Stash plugin that turns Stash into an Instagram-shaped social and discovery layer. Stashy's social side is
+Binge is the Stash plugin that turns Stash into an Instagram-shaped social and discovery layer. Stashfeed's social side is
 modelled on it: the Home feed with stories, posts and reposts, the vertical For You reel with its Random and Chained
 modes, performer profiles with a feed, the gallery swipe and tap gestures, and the idea of keeping seen posts in the
-Stash UI settings. If you like Stashy's feed, try Binge in your browser as well.
+Stash UI settings. If you like Stashfeed's feed, try Binge in your browser as well.
 
-Stashy is a separate Kotlin implementation of these ideas for Android; it does not include Binge's code.
+Stashfeed is a separate Kotlin implementation of these ideas for Android; it does not include Binge's code.
 
 ## Inter
 
 **[Inter](https://rsms.me/inter/)** by [Rasmus Andersson](https://github.com/rsms) · SIL Open Font License 1.1
 
-Stashy's typeface. The font is bundled unchanged; its license is in
+Stashfeed's typeface. The font is bundled unchanged; its license is in
 [app/src/main/assets/licenses/inter-OFL.txt](app/src/main/assets/licenses/inter-OFL.txt).
 
 ## Libraries

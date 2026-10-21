@@ -3,8 +3,8 @@
 <resources>
     <!-- Appearance -->
     <string name="settings_ui_style_title">Accent source</string>
-    <string name="settings_ui_style_description">Stashy is always dark. Pick where its accent color comes from.</string>
-    <string name="settings_ui_style_social_label">Stashy colors</string>
+    <string name="settings_ui_style_description">Stashfeed is always dark. Pick where its accent color comes from.</string>
+    <string name="settings_ui_style_social_label">Stashfeed colors</string>
     <string name="settings_ui_style_social_description">Use the accent you pick below.</string>
     <string name="settings_ui_style_material_label">Wallpaper colors</string>
     <string name="settings_ui_style_material_description">Take the accent from your wallpaper (Android 12 and later).</string>
@@ -192,7 +192,7 @@
     <string name="filter_screen_date_duration">Date &amp; duration</string>
     <string name="filter_screen_rating_quality">Rating &amp; quality</string>
     <string name="filter_screen_local">On this device</string>
-    <string name="filter_screen_local_hint">Only scenes you marked as favorite in Stashy</string>
+    <string name="filter_screen_local_hint">Only scenes you marked as favorite in Stashfeed</string>
     <string name="filter_screen_actions">Actions</string>
     <string name="filter_screen_selected_count">%1$d selected</string>
     <string name="filter_screen_actions_hint">Select, play or delete</string>
@@ -219,6 +219,6 @@
     <string name="library_not_connected">Not connected</string>
     <string name="feed_sound_on">Turn sound on</string>
     <string name="feed_sound_off">Mute</string>
-    <string name="setup_welcome_title">Welcome to Stashy</string>
+    <string name="setup_welcome_title">Welcome to Stashfeed</string>
     <string name="setup_welcome_message">Connect your Stash server to see your feed, performers and library.</string>
 </resources>

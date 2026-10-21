@@ -189,7 +189,7 @@ object RecentAppsPrivacySettingCopy {
 object SupportSettingCopy {
     const val releasesUrl = STASH_ANDROID_RELEASES_URL
     const val latestReleaseApiUrl = STASH_ANDROID_LATEST_RELEASE_API_URL
-    const val issuesUrl = "https://github.com/stashy-app/stashy/issues"
+    const val issuesUrl = "https://github.com/stashfeed/stashfeed/issues"
 
     @StringRes val versionTitle = R.string.settings_support_version_title
     @StringRes val updateCheckTitle = R.string.settings_support_update_check_title

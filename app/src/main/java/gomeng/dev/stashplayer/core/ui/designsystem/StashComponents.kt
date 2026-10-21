@@ -81,7 +81,7 @@ fun Modifier.stashPressScale(interactionSource: MutableInteractionSource, presse
  * ------------------------------------------------------------------------------------------------------------- */
 
 /**
- * The few haptics Stashy uses, after Android's "less is more" guidance: a light tick for toggles and selection,
+ * The few haptics Stashfeed uses, after Android's "less is more" guidance: a light tick for toggles and selection,
  * a confirm for completed actions (rating, O, follow), a reject when something can't be done.
  */
 @Stable
