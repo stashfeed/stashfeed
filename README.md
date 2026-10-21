@@ -90,8 +90,9 @@ Pick one of five accent colours or let Android take it from your wallpaper.
 
 ## Install
 
-Builds will be published on the [Releases](../../releases) page. Download the APK on your phone, open it, and allow
-installs from your browser or file manager if Android asks.
+Download the latest APK from the [Releases](../../releases/latest) page on your phone, open it, and allow installs
+from your browser or file manager if Android asks. Updates install over it, and Stashy tells you when a new version
+is out.
 
 To build it yourself:
 
@@ -114,6 +115,12 @@ Stashy talks only to your Stash server. There is no account, no analytics and no
 - The list of seen feed posts is stored in your Stash server's UI settings, under the `stashy` key.
 - An option hides the app preview in Android's recent apps, and an optional app lock uses your device's
   fingerprint or screen lock.
+
+## Roadmap
+
+Possible next steps are collected in the pinned [Roadmap](../../issues/6) issue: Binge-compatible collections (📁)
+and advanced ratings (★), StashDB discover, more languages, and editing tags from the app. Ideas and questions are
+welcome in [Discussions](../../discussions), bugs in [Issues](../../issues).
 
 ## Credits
 
