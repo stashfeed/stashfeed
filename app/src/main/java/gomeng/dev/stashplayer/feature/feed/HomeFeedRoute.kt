@@ -415,7 +415,7 @@ private fun LazyGridScope.feedPostItems(
                     tokens = tokens,
                     onNeedImages = { viewModel.ensureGalleryImages(item.gallery.gallery.id) },
                     onNeedMoreImages = { viewModel.loadMoreGalleryImages(item.gallery.gallery.id) },
-                    onOpenPhoto = { index ->
+                    onOpenPhoto = { index, onClosed ->
                         val galleryId = item.gallery.gallery.id
                         onOpenLightbox(
                             FeedLightboxRequest(
@@ -424,6 +424,7 @@ private fun LazyGridScope.feedPostItems(
                                 totalCount = item.gallery.gallery.imageCount ?: 0,
                                 images = { viewModel.galleryImages[galleryId]?.images.orEmpty() },
                                 onNeedMore = { viewModel.loadMoreGalleryImages(galleryId) },
+                                onClosed = onClosed,
                             ),
                         )
                     },
@@ -906,7 +907,8 @@ internal fun GalleryPost(
     tokens: StashStyleTokens,
     onNeedImages: () -> Unit,
     onNeedMoreImages: () -> Unit,
-    onOpenPhoto: (Int) -> Unit,
+    /** Opens photo `index` full screen; the viewer reports the photo it closed on through the second argument. */
+    onOpenPhoto: (index: Int, onClosed: (Int) -> Unit) -> Unit,
     onOpenGallery: () -> Unit,
     onOpenPerformer: (String) -> Unit,
 ) {
@@ -920,6 +922,11 @@ internal fun GalleryPost(
     // Just the photos (the post itself is the gallery view); only the cover until the photos arrive.
     val slideCount = maxOf(1, loaded.size)
     val pagerState = rememberPagerState { slideCount }
+    val scope = rememberCoroutineScope()
+    // Back from full screen, the carousel shows the photo the viewer was closed on.
+    val showClosedPhoto: (Int) -> Unit = { index ->
+        scope.launch { pagerState.scrollToPage(index.coerceIn(0, (pagerState.pageCount - 1).coerceAtLeast(0))) }
+    }
 
     LaunchedEffect(pagerState, loaded.size, images?.hasMore) {
         snapshotFlow { pagerState.currentPage }.collect { page ->
@@ -954,7 +961,7 @@ internal fun GalleryPost(
                 }
                 image != null -> {
                     val model = rememberStashThumbnailModel(image.thumbnailUrl ?: image.previewUrl ?: image.imageUrl, serverProfile)
-                    Box(Modifier.fillMaxSize().clickable { onOpenPhoto(page) }) {
+                    Box(Modifier.fillMaxSize().clickable { onOpenPhoto(page, showClosedPhoto) }) {
                         AsyncImage(model = model, contentDescription = image.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                     }
                 }

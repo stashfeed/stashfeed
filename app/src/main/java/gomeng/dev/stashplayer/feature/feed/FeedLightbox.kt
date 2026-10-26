@@ -4,7 +4,14 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,13 +33,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,10 +58,19 @@ import gomeng.dev.stashplayer.core.model.GalleryImageModel
 import gomeng.dev.stashplayer.core.network.StashServerProfile
 import gomeng.dev.stashplayer.core.ui.components.rememberStashThumbnailModel
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
+import kotlin.math.abs
+import kotlin.math.sign
 import kotlinx.coroutines.launch
 
 /** Start loading the next page this many images before the end, like the plugin. */
 private const val LIGHTBOX_PRELOAD_DISTANCE = 4
+
+/** Swipe to close: share of the screen height the photo must travel, or the fling speed (px/s) that is enough. */
+private const val LIGHTBOX_DISMISS_DISTANCE = 0.22f
+private const val LIGHTBOX_DISMISS_VELOCITY = 1_800f
+
+/** How far the photo shrinks while it is dragged away, at a full screen height. */
+private const val LIGHTBOX_DRAG_MIN_SCALE = 0.85f
 
 /**
  * What the full-screen viewer shows. [images] is read on every frame, so a list that grows while the viewer is
@@ -61,11 +83,14 @@ class FeedLightboxRequest(
     val totalCount: Int,
     val images: () -> List<GalleryImageModel>,
     val onNeedMore: () -> Unit,
+    /** Called with the photo shown when the viewer closes, so the carousel behind it can show the same one. */
+    val onClosed: (Int) -> Unit = {},
 )
 
 /**
  * Full-screen photo viewer with the Binge plugin's gestures: swipe sideways to change photo, tap the left half
- * for the previous one and the right half for the next. Hides the system bars while open.
+ * for the previous one and the right half for the next. Swiping up or down drags the photo away and closes the
+ * viewer, as on Reddit. Hides the system bars while open.
  */
 @Composable
 fun FeedLightbox(
@@ -77,8 +102,16 @@ fun FeedLightbox(
     val pageCount = images.size
     val pagerState = rememberPagerState(initialPage = request.startIndex.coerceIn(0, (pageCount - 1).coerceAtLeast(0))) { pageCount }
     val scope = rememberCoroutineScope()
-    BackHandler(onBack = onDismiss)
+    val dragOffset = remember { Animatable(0f) }
+    var viewerHeight by remember { mutableFloatStateOf(1f) }
+    val close = {
+        request.onClosed(pagerState.currentPage)
+        onDismiss()
+    }
+    BackHandler(onBack = close)
     ImmersiveSystemBars()
+    // 0 at rest, 1 once the photo has been dragged a full screen height away.
+    val dragFraction = (abs(dragOffset.value) / viewerHeight).coerceIn(0f, 1f)
 
     LaunchedEffect(pagerState, pageCount) {
         snapshotFlow { pagerState.currentPage }.collect { page ->
@@ -89,7 +122,23 @@ fun FeedLightbox(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .onSizeChanged { viewerHeight = it.height.toFloat().coerceAtLeast(1f) }
+            .background(Color.Black.copy(alpha = 1f - (dragFraction * 1.6f).coerceAtMost(1f)))
+            .draggable(
+                orientation = Orientation.Vertical,
+                state = rememberDraggableState { delta -> scope.launch { dragOffset.snapTo(dragOffset.value + delta) } },
+                onDragStopped = { velocity ->
+                    val farEnough = abs(dragOffset.value) > viewerHeight * LIGHTBOX_DISMISS_DISTANCE
+                    if (farEnough || abs(velocity) > LIGHTBOX_DISMISS_VELOCITY) {
+                        // Let the photo leave the screen in the direction it was thrown, then close.
+                        val direction = if (dragOffset.value != 0f) sign(dragOffset.value) else sign(velocity)
+                        dragOffset.animateTo(direction * viewerHeight, tween(180))
+                        close()
+                    } else {
+                        dragOffset.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                    }
+                },
+            ),
     ) {
         if (pageCount == 0) {
             CircularProgressIndicator(color = Color.White, modifier = Modifier.align(Alignment.Center))
@@ -100,6 +149,12 @@ fun FeedLightbox(
                 key = { index -> images.getOrNull(index)?.id ?: index },
                 modifier = Modifier
                     .fillMaxSize()
+                    .graphicsLayer {
+                        translationY = dragOffset.value
+                        val scale = 1f - (1f - LIGHTBOX_DRAG_MIN_SCALE) * dragFraction
+                        scaleX = scale
+                        scaleY = scale
+                    }
                     .pointerInput(pageCount) {
                         detectTapGestures { offset ->
                             val target = if (offset.x < size.width / 2f) pagerState.currentPage - 1 else pagerState.currentPage + 1
@@ -121,12 +176,13 @@ fun FeedLightbox(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .graphicsLayer { alpha = 1f - (dragFraction * 4f).coerceAtMost(1f) }
                 .safeDrawingPadding()
                 .background(Color.Black.copy(alpha = 0.35f))
                 .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onDismiss) {
+            IconButton(onClick = close) {
                 Icon(Icons.Outlined.Close, contentDescription = stashString(R.string.auto_kr_0192), tint = Color.White)
             }
             Column(modifier = Modifier.weight(1f)) {

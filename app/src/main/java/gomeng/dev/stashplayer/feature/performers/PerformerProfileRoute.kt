@@ -412,7 +412,7 @@ fun PerformerProfileRoute(
                                         tokens = tokens,
                                         onNeedImages = { viewModel.galleryImages.ensure(galleryId) },
                                         onNeedMoreImages = { viewModel.galleryImages.loadMore(galleryId) },
-                                        onOpenPhoto = { index ->
+                                        onOpenPhoto = { index, onClosed ->
                                             onOpenLightbox(
                                                 FeedLightboxRequest(
                                                     title = item.gallery.title,
@@ -420,6 +420,7 @@ fun PerformerProfileRoute(
                                                     totalCount = item.gallery.imageCount ?: 0,
                                                     images = { viewModel.galleryImages[galleryId]?.images.orEmpty() },
                                                     onNeedMore = { viewModel.galleryImages.loadMore(galleryId) },
+                                                    onClosed = onClosed,
                                                 ),
                                             )
                                         },
