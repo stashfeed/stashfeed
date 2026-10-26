@@ -8,6 +8,8 @@ import gomeng.dev.stashplayer.core.network.DownloaderSettings
 import gomeng.dev.stashplayer.core.network.LibraryDetails
 import gomeng.dev.stashplayer.core.network.RedditImagePost
 import gomeng.dev.stashplayer.core.network.RedditPostResolver
+import gomeng.dev.stashplayer.core.network.RedditStashAgent
+import gomeng.dev.stashplayer.core.network.RedditStashAgentClient
 import gomeng.dev.stashplayer.core.network.StashDownloaderClient
 import gomeng.dev.stashplayer.core.network.StashGraphQlClient
 import gomeng.dev.stashplayer.core.network.StashJobStatus
@@ -17,6 +19,7 @@ import gomeng.dev.stashplayer.core.network.StashServerAdminClient
 import gomeng.dev.stashplayer.core.network.StashServerProfile
 import gomeng.dev.stashplayer.core.network.cleanSourceUrl
 import gomeng.dev.stashplayer.core.network.isDirectImageUrl
+import gomeng.dev.stashplayer.core.network.isRedditPostLink
 import gomeng.dev.stashplayer.core.network.redditPostId
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -61,6 +64,8 @@ data class StashDownload(
     val studio: String? = null,
     val phase: DownloadPhase = DownloadPhase.Starting,
     val progress: DownloaderProgress? = null,
+    /** What the Reddit Stash Agent is doing right now, for downloads it handles. */
+    val step: String? = null,
     /** For galleries: images downloaded so far, of [partCount]. */
     val partDone: Int = 0,
     val partCount: Int = 0,
@@ -89,6 +94,9 @@ private const val RESULT_GRACE_POLLS = 3
 
 /** How long the import waits for the page details (performers, tags) that are fetched next to the download. */
 private const val DETAILS_WAIT_MS = 60_000L
+
+/** How often a download handled by the Reddit Stash Agent is checked. */
+private const val AGENT_POLL_MS = 2_000L
 
 /** Downloaded images go in this folder of the image library; each gallery gets its own folder in it. */
 private const val IMAGE_FOLDER = "Stashfeed"
@@ -203,6 +211,11 @@ object StashDownloads {
     }
 
     private suspend fun run(graph: StashGraphQlClient, download: StashDownload, force: Boolean) = coroutineScope {
+        // Reddit posts go to the Reddit Stash Agent when it's there: it has a Reddit login and imports them itself.
+        if (isRedditPostLink(download.url) && redditAgentInstalled(graph)) {
+            runWithRedditAgent(graph, download, force)
+            return@coroutineScope
+        }
         val downloader = StashDownloaderClient(graph)
         val links = StashLibraryLinks(graph)
         val settings = downloader.settings()
@@ -278,6 +291,52 @@ object StashDownloads {
                     ?: imageIds.takeIf { it.isNotEmpty() }?.let { links.createGallery(details, it) }
                 change(download.id) { it.copy(phase = DownloadPhase.Done, galleryId = galleryId) }
             }
+        }
+    }
+
+    private suspend fun redditAgentInstalled(graph: StashGraphQlClient): Boolean =
+        runCatching { StashServerAdminClient(graph).plugins().any { it.id == RedditStashAgent.PLUGIN_ID && it.enabled } }.getOrDefault(false)
+
+    /** Lets the agent download and import the post, following its job until it ends. */
+    private suspend fun runWithRedditAgent(graph: StashGraphQlClient, download: StashDownload, force: Boolean) {
+        if (!force) {
+            findInLibrary(StashLibraryLinks(graph), download.url)?.let { match ->
+                change(download.id) { it.copy(phase = DownloadPhase.AlreadyInLibrary, sceneId = match.sceneId, imageId = match.imageId, galleryId = match.galleryId) }
+                return
+            }
+        }
+        val agent = RedditStashAgentClient(StashServerAdminClient(graph))
+        var job = agent.downloadPost(download.url)
+        while (true) {
+            val current = job
+            change(download.id) {
+                it.copy(
+                    phase = if (current.status == "queued") DownloadPhase.Queued else DownloadPhase.Downloading,
+                    progress = DownloaderProgress(current.progress * 100f, null, null, null, null),
+                    step = current.stepLabel,
+                )
+            }
+            if (current.finished) break
+            delay(AGENT_POLL_MS)
+            job = runCatching { agent.downloadStatus(current.id) }.getOrElse { current }
+        }
+        if (job.status != "success") error(job.error ?: "The Reddit Stash Agent could not download the post")
+        val kind = when {
+            job.galleryId != null || job.imageIds.size > 1 -> DownloadKind.Gallery
+            job.imageIds.isNotEmpty() && job.sceneIds.isEmpty() -> DownloadKind.Image
+            else -> DownloadKind.Video
+        }
+        change(download.id) {
+            it.copy(
+                kind = kind,
+                title = it.title ?: job.title,
+                phase = if (job.alreadyDownloaded) DownloadPhase.AlreadyInLibrary else DownloadPhase.Done,
+                step = null,
+                sceneId = job.sceneIds.firstOrNull(),
+                // A gallery shows its first image as the thumbnail.
+                imageId = job.imageIds.firstOrNull(),
+                galleryId = job.galleryId,
+            )
         }
     }
 

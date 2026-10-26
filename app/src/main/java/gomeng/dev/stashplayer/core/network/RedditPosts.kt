@@ -40,7 +40,15 @@ class RedditPostResolver(private val http: OkHttpClient = OkHttpClient()) {
 
 private val REDDIT_POST_PATH = Regex("""(?:reddit\.com/(?:r/[^/]+/)?(?:comments|gallery)/|redd\.it/)([a-z0-9]{4,10})""", RegexOption.IGNORE_CASE)
 
-/** The post ID in a Reddit post, gallery or redd.it link; null for anything else (also i.redd.it images). */
+private val REDDIT_SHARE_PATH = Regex("""reddit\.com/r/[^/]+/s/[A-Za-z0-9]+""", RegexOption.IGNORE_CASE)
+
+/**
+ * Whether [url] points at a Reddit post: a post, gallery or redd.it link, or a share link ("/r/name/s/code") that
+ * only Reddit can turn into the post. The Reddit Stash Agent takes all of them.
+ */
+fun isRedditPostLink(url: String): Boolean = redditPostId(url) != null || REDDIT_SHARE_PATH.containsMatchIn(url)
+
+/** The post ID in a Reddit post, gallery or redd.it link; null for anything else (also i.redd.it images and share links). */
 internal fun redditPostId(url: String): String? {
     if ("i.redd.it" in url || "v.redd.it" in url || "preview.redd.it" in url) return null
     return REDDIT_POST_PATH.find(url)?.groupValues?.get(1)?.lowercase()

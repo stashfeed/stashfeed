@@ -99,6 +99,7 @@ fun DownloadsRoute(
     // What "Check link" found: how many images a post holds, and what is already in the library under this link.
     var checkedImageCount by remember { mutableStateOf(0) }
     var duplicate by remember { mutableStateOf<LibraryMatch?>(null) }
+    var viaRedditAgent by remember { mutableStateOf(false) }
 
     // Notifications report finished downloads while the app is in the background (Android 13+ asks first).
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -114,6 +115,7 @@ fun DownloadsRoute(
         metadata = null
         checkedImageCount = 0
         duplicate = null
+        viaRedditAgent = false
         errorText = null
     }
 
@@ -151,6 +153,7 @@ fun DownloadsRoute(
                     metadata = check.metadata
                     checkedImageCount = check.imageCount
                     duplicate = check.duplicate
+                    viaRedditAgent = check.viaRedditAgent
                     if (title.isBlank()) title = check.metadata.title.orEmpty()
                 }
                 .onFailure {
@@ -233,6 +236,13 @@ fun DownloadsRoute(
                             modifier = Modifier.fillMaxWidth(),
                         )
                         metadata?.let { MetadataSummary(it, checkedImageCount) }
+                        if (viaRedditAgent) {
+                            Text(
+                                stringResource(R.string.downloads_via_reddit_agent),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         duplicate?.let { match ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
@@ -377,14 +387,16 @@ private fun DownloadRow(
     onOpen: () -> Unit,
     onRetry: (force: Boolean) -> Unit,
 ) {
-    // Once the video is in the library, its Stash screenshot; before that, the site's thumbnail.
-    val stashThumbnail = rememberStashThumbnailModel(download.sceneId?.let { "${profile?.baseUrl?.trimEnd('/')}/scene/$it/screenshot" }, profile)
+    // Once it is in the library, its picture from Stash; before that, the site's thumbnail.
+    val base = profile?.baseUrl?.trimEnd('/')
+    val stashPath = download.sceneId?.let { "$base/scene/$it/screenshot" } ?: download.imageId?.let { "$base/image/$it/thumbnail" }
+    val stashThumbnail = rememberStashThumbnailModel(stashPath, profile)
     val openable = download.sceneId != null || download.galleryId != null
     val inLibrary = download.phase == DownloadPhase.Done || download.phase == DownloadPhase.AlreadyInLibrary
     DownloadCard {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             DownloadThumbnail(
-                model = stashThumbnail.takeIf { download.sceneId != null && profile != null } ?: download.thumbnailUrl,
+                model = stashThumbnail.takeIf { stashPath != null && profile != null } ?: download.thumbnailUrl,
                 modifier = Modifier.width(120.dp),
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -468,6 +480,7 @@ private fun DownloadStatus(download: StashDownload) {
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
             val details = listOfNotNull(
+                download.step,
                 part,
                 percent?.takeIf { part == null }?.let { "${it.toInt()} %" },
                 progress?.totalBytes?.takeIf { part == null }?.let { Formatter.formatShortFileSize(context, it) },

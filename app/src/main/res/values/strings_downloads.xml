@@ -61,4 +61,5 @@
     <string name="downloads_notification_duplicate">Already in your library</string>
     <string name="downloads_notification_failed">Download failed</string>
     <string name="downloads_phase_interrupted_short">Interrupted</string>
+    <string name="downloads_via_reddit_agent">Reddit post: the Reddit Stash Agent downloads it with its Reddit login and adds it to your library.</string>
 </resources>

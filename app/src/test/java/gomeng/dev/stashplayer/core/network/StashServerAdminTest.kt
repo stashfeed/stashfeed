@@ -92,4 +92,27 @@ class StashServerAdminTest {
         assertEquals(RedditStashAgent.DEFAULT_INTERVAL_HOURS, status.intervalHours, 0.0)
         assertNull(status.cookies)
     }
+
+    @Test
+    fun parsesRedditAgentDownloadJobs() {
+        val running = parseRedditAgentDownload(
+            JSONObject("""{"id":"abc123def456","url":"https://www.reddit.com/r/x/comments/k1/","status":"running","progress":0.4,"step_label":"Download media","result":null}"""),
+        )
+        assertEquals("abc123def456", running.id)
+        assertFalse(running.finished)
+        assertEquals("Download media", running.stepLabel)
+        assertEquals(0.4f, running.progress, 0.0001f)
+
+        val done = parseRedditAgentDownload(
+            JSONObject(
+                """{"id":"j2","status":"success","progress":1.0,"result":{"title":"Two pics","already_downloaded":true,
+                   "scene_ids":[],"image_ids":["11","12"],"gallery_id":"5"}}""",
+            ),
+        )
+        assertTrue(done.finished)
+        assertTrue(done.alreadyDownloaded)
+        assertEquals(listOf("11", "12"), done.imageIds)
+        assertEquals("5", done.galleryId)
+        assertEquals("Two pics", done.title)
+    }
 }

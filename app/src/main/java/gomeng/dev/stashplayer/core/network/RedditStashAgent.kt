@@ -16,6 +16,26 @@ object RedditStashAgent {
     const val DEFAULT_INTERVAL_HOURS = 6.0
 }
 
+private const val OUTDATED_AGENT_MESSAGE =
+    "The Reddit Stash Agent on your server is older than 0.8.0 and can't download single posts. Update the agent container."
+
+/** A single-post download on the agent (0.8.0+), as `download_post` and `download_status` report it. */
+data class RedditAgentDownload(
+    val id: String,
+    /** queued, running, success or failed. */
+    val status: String,
+    val progress: Float,
+    val stepLabel: String?,
+    val error: String?,
+    val title: String?,
+    val alreadyDownloaded: Boolean,
+    val sceneIds: List<String>,
+    val imageIds: List<String>,
+    val galleryId: String?,
+) {
+    val finished: Boolean get() = status != "queued" && status != "running"
+}
+
 data class RedditAgentCookies(
     val present: Boolean,
     val expired: Boolean,
@@ -51,6 +71,17 @@ class RedditStashAgentClient(private val admin: StashServerAdminClient) {
         operation("cancel")
     }
 
+    /** Hands one Reddit post to the agent, which downloads it with its Reddit login and imports it into Stash. */
+    suspend fun downloadPost(url: String): RedditAgentDownload = try {
+        parseRedditAgentDownload(operation(mapOf("mode" to "download_post", "url" to url, "wait" to false)))
+    } catch (failure: IllegalStateException) {
+        // The plugin in Stash is new enough, but the agent service behind it doesn't know single downloads yet.
+        if ("HTTP 404" in failure.message.orEmpty()) error(OUTDATED_AGENT_MESSAGE) else throw failure
+    }
+
+    suspend fun downloadStatus(id: String): RedditAgentDownload =
+        parseRedditAgentDownload(operation(mapOf("mode" to "download_status", "id" to id)))
+
     /** Saves the auto-sync settings in Stash, then pushes them to the agent, which only reads them on "config". */
     suspend fun setAutoSync(enabled: Boolean, intervalHours: Double) {
         val settings = admin.pluginSettings(RedditStashAgent.PLUGIN_ID).toMap()
@@ -60,8 +91,10 @@ class RedditStashAgentClient(private val admin: StashServerAdminClient) {
         operation("config")
     }
 
-    private suspend fun operation(mode: String): JSONObject =
-        admin.runPluginOperation(RedditStashAgent.PLUGIN_ID, mapOf("mode" to mode)) ?: JSONObject()
+    private suspend fun operation(mode: String): JSONObject = operation(mapOf("mode" to mode))
+
+    private suspend fun operation(args: Map<String, Any?>): JSONObject =
+        admin.runPluginOperation(RedditStashAgent.PLUGIN_ID, args) ?: JSONObject()
 }
 
 private fun JSONObject.toMap(): MutableMap<String, Any?> =
@@ -93,5 +126,25 @@ internal fun parseRedditAgentStatus(json: JSONObject): RedditAgentStatus {
             )
         },
         version = json.optNullableString("version"),
+    )
+}
+
+internal fun parseRedditAgentDownload(json: JSONObject): RedditAgentDownload {
+    val result = json.optJSONObject("result") ?: JSONObject()
+    fun ids(key: String): List<String> {
+        val array = result.optJSONArray(key) ?: return emptyList()
+        return (0 until array.length()).mapNotNull { array.optString(it).takeIf(String::isNotBlank) }
+    }
+    return RedditAgentDownload(
+        id = json.optNullableString("id") ?: error("The agent returned no download job"),
+        status = json.optNullableString("status") ?: "queued",
+        progress = json.optDouble("progress", 0.0).toFloat().coerceIn(0f, 1f),
+        stepLabel = json.optNullableString("step_label"),
+        error = json.optNullableString("error"),
+        title = result.optNullableString("title"),
+        alreadyDownloaded = result.optBoolean("already_downloaded"),
+        sceneIds = ids("scene_ids"),
+        imageIds = ids("image_ids"),
+        galleryId = result.optNullableString("gallery_id"),
     )
 }

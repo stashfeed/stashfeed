@@ -33,6 +33,15 @@ class StashLibraryLinksTest {
     }
 
     @Test
+    fun shareLinksCountAsRedditPosts() {
+        assertTrue(isRedditPostLink("https://www.reddit.com/r/pics/s/OBT41hp2sh"))
+        assertNull(redditPostId("https://www.reddit.com/r/pics/s/OBT41hp2sh"))
+        assertTrue(isRedditPostLink("https://redd.it/abc123"))
+        assertFalse(isRedditPostLink("https://i.redd.it/abc.jpg"))
+        assertFalse(isRedditPostLink("https://www.reddit.com/r/pics/"))
+    }
+
+    @Test
     fun galleryPostKeepsImageOrder() {
         val post = parseRedditImagePost(
             """[{"data":{"children":[{"data":{"id":"abc123","title":"Two pics","author":"someone","subreddit":"pics",
