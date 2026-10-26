@@ -207,7 +207,7 @@
     <string name="settings_back_button">Back</string>
     <string name="settings_row_open_indicator">&gt;</string>
     <string name="settings_category_server_title">Server</string>
-    <string name="settings_category_server_description">Manage the Stash server connection and Hybrid recommendation status.</string>
+    <string name="settings_category_server_description">The Stash server connection and Hybrid recommendation status.</string>
     <string name="settings_category_security_title">Security</string>
     <string name="settings_category_security_description">Protect app access with device authentication.</string>
     <string name="settings_category_playback_title">Playback</string>

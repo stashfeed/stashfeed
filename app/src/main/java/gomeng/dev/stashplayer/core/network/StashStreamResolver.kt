@@ -740,6 +740,9 @@ class StashGraphQlClient(
         )
     }
 
+    /** Raw GraphQL for feature clients that keep their own queries, such as [StashServerAdminClient]. */
+    internal suspend fun executeRaw(query: String, variables: Map<String, Any?> = emptyMap()): String = execute(query, variables)
+
     private suspend fun execute(query: String, variables: Map<String, Any?> = emptyMap()): String = withContext(Dispatchers.IO) {
         require(profile.isConfigured()) { "Stash server is not configured" }
         val bodyJson = JSONObject()

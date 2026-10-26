@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings › Server tasks: job queue, library tasks, plugins and the Reddit Stash Agent. -->
+    <string name="settings_category_tasks_title">Server tasks</string>
+    <string name="settings_category_tasks_description">Jobs, scan and generate, plugins and the Reddit Stash Agent.</string>
+
+    <string name="settings_tasks_stop_job">Stop</string>
+    <string name="settings_tasks_stop_job_failed">Could not stop the job.</string>
+    <string name="settings_tasks_start">Start</string>
+    <string name="settings_tasks_run">Run</string>
+    <string name="settings_tasks_started">%1$s started. Follow it under Job queue.</string>
+    <string name="settings_tasks_start_failed">Could not start the task.</string>
+
+    <string name="settings_tasks_library_title">Library tasks</string>
+    <string name="settings_tasks_library_description">Each task runs on your Stash server and shows up in the job queue.</string>
+    <string name="settings_tasks_generate">Generate</string>
+    <string name="settings_tasks_generate_description">Create the files Stash shows for your scenes and images. Missing ones are generated; existing ones are kept unless you overwrite them.</string>
+    <string name="settings_tasks_generate_covers">Video covers</string>
+    <string name="settings_tasks_generate_previews">Video previews</string>
+    <string name="settings_tasks_generate_image_previews">Animated image previews</string>
+    <string name="settings_tasks_generate_sprites">Seek sprites</string>
+    <string name="settings_tasks_generate_phashes">Video perceptual hashes</string>
+    <string name="settings_tasks_generate_markers">Marker previews</string>
+    <string name="settings_tasks_generate_thumbnails">Image thumbnails</string>
+    <string name="settings_tasks_generate_clip_previews">Image clip previews</string>
+    <string name="settings_tasks_generate_overwrite">Overwrite existing files</string>
+    <string name="settings_tasks_auto_tag">Auto tag</string>
+    <string name="settings_tasks_auto_tag_confirm">Match every performer, studio and tag against the file names in your whole library?</string>
+    <string name="settings_tasks_clean">Clean</string>
+    <string name="settings_tasks_clean_confirm">Remove scenes, images and galleries from the Stash database whose files no longer exist? The files themselves are not touched.</string>
+
+    <string name="settings_tasks_plugins_title">Plugins</string>
+    <string name="settings_tasks_plugins_reload">Reload</string>
+    <string name="settings_tasks_plugins_reloaded">Plugins reloaded.</string>
+    <string name="settings_tasks_plugins_empty">No plugins installed on this server.</string>
+    <string name="settings_tasks_plugins_failed">Could not load the plugins.</string>
+    <plurals name="settings_tasks_plugin_task_count">
+        <item quantity="one">%d task</item>
+        <item quantity="other">%d tasks</item>
+    </plurals>
+
+    <string name="settings_reddit_agent_title">Reddit Stash Agent</string>
+    <string name="settings_reddit_agent_unreachable">The Reddit Stash Agent is not reachable.</string>
+    <string name="settings_reddit_agent_running">Syncing…</string>
+    <string name="settings_reddit_agent_running_step">Syncing · step %1$d of %2$d: %3$s</string>
+    <string name="settings_reddit_agent_never_synced">No sync yet.</string>
+    <string name="settings_reddit_agent_last_success">Last sync %1$s</string>
+    <string name="settings_reddit_agent_last_cancelled">Last sync was cancelled (%1$s)</string>
+    <string name="settings_reddit_agent_last_failed">Last sync failed (%1$s)</string>
+    <string name="settings_reddit_agent_start">Start sync</string>
+    <string name="settings_reddit_agent_cancel">Cancel sync</string>
+    <string name="settings_reddit_agent_auto_sync">Automatic sync</string>
+    <string name="settings_reddit_agent_auto_sync_off">Off</string>
+    <string name="settings_reddit_agent_next_run">Next sync %1$s</string>
+    <string name="settings_reddit_agent_interval">Every %1$d h</string>
+    <string name="settings_reddit_agent_cookies_missing">No Reddit cookies on the agent. Export them from your browser to sync.</string>
+    <string name="settings_reddit_agent_cookies_expired">Your Reddit cookies have expired. Export new ones from your browser.</string>
+    <plurals name="settings_reddit_agent_cookies_expiring">
+        <item quantity="one">Your Reddit cookies expire tomorrow.</item>
+        <item quantity="other">Your Reddit cookies expire in %d days.</item>
+    </plurals>
+    <string name="settings_reddit_agent_duration">took %1$s</string>
+    <plurals name="settings_reddit_agent_posts_new">
+        <item quantity="one">%d new post</item>
+        <item quantity="other">%d new posts</item>
+    </plurals>
+    <plurals name="settings_reddit_agent_files_new">
+        <item quantity="one">%d new file</item>
+        <item quantity="other">%d new files</item>
+    </plurals>
+    <plurals name="settings_reddit_agent_galleries_created">
+        <item quantity="one">%d new gallery</item>
+        <item quantity="other">%d new galleries</item>
+    </plurals>
+    <plurals name="settings_reddit_agent_downloads_failed">
+        <item quantity="one">%d download failed</item>
+        <item quantity="other">%d downloads failed</item>
+    </plurals>
+    <plurals name="settings_reddit_agent_feeds_failed">
+        <item quantity="one">%d feed failed</item>
+        <item quantity="other">%d feeds failed</item>
+    </plurals>
+    <plurals name="settings_reddit_agent_link_errors">
+        <item quantity="one">%d link error</item>
+        <item quantity="other">%d link errors</item>
+    </plurals>
+</resources>
