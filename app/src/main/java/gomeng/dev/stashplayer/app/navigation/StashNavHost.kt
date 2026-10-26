@@ -142,6 +142,8 @@ import gomeng.dev.stashplayer.feature.gallery.GalleryRoute
 import gomeng.dev.stashplayer.feature.feed.FeedLightbox
 import gomeng.dev.stashplayer.feature.feed.FeedLightboxRequest
 import gomeng.dev.stashplayer.feature.feed.HomeFeedRoute
+import gomeng.dev.stashplayer.feature.downloads.DownloadsRoute
+import gomeng.dev.stashplayer.feature.downloads.StashShareInbox
 import gomeng.dev.stashplayer.feature.home.HomeRoute
 import gomeng.dev.stashplayer.feature.library.LibraryRoute
 import gomeng.dev.stashplayer.feature.performers.PerformerProfileRoute
@@ -182,6 +184,7 @@ private enum class TopLevelDestination(
 /** Screens that used to be tabs; they now open from Explore or Library. */
 private const val GalleryRoutePath = "gallery"
 private const val QueueRoutePath = "queue"
+private const val DownloadsRoutePath = "downloads"
 private const val LegacyHomeRoutePath = "home/dashboard"
 
 private data class ActiveGalleryPhotoViewer(
@@ -326,6 +329,14 @@ fun StashNavHost(
     fun updatePlaybackQueue(queue: PlayerPlaybackQueue) {
         playbackQueueRestored = true
         playbackQueue = queue
+    }
+
+    // A link shared to Stashfeed opens Downloads, which takes it from the inbox.
+    val sharedLinks by StashShareInbox.pending.collectAsState()
+    LaunchedEffect(sharedLinks, savedProfile) {
+        if (sharedLinks.isNotEmpty() && savedProfile != null && currentRoute != DownloadsRoutePath) {
+            navController.navigate(DownloadsRoutePath) { launchSingleTop = true }
+        }
     }
 
     LaunchedEffect(savedProfile, currentRoute) {
@@ -806,6 +817,14 @@ fun StashNavHost(
                             onOpenDashboard = { navigateSecondary(LegacyHomeRoutePath) },
                             onBack = { if (!navController.popBackStack()) navigateTopLevel(TopLevelDestination.Home) },
                             onOpenSettingsSection = { route -> navigateSecondary(route) },
+                            onOpenDownloads = { navigateSecondary(DownloadsRoutePath) },
+                        )
+                    }
+                    composable(DownloadsRoutePath) {
+                        DownloadsRoute(
+                            isFoldLikeLayout = isFoldLikeLayout,
+                            onBack = { if (!navController.popBackStack()) navigateTopLevel(TopLevelDestination.Home) },
+                            onOpenScene = ::showPlayer,
                         )
                     }
                     composable(GalleryRoutePath) {

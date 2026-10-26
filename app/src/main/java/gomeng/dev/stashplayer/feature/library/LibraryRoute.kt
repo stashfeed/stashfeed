@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.PlaylistPlay
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.PlayCircleOutline
@@ -66,6 +67,7 @@ fun LibraryRoute(
     onOpenDashboard: () -> Unit = {},
     onBack: () -> Unit = {},
     onOpenSettingsSection: (String) -> Unit = { onOpenSettings() },
+    onOpenDownloads: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val repository = remember(context) { StashLocalLibraryRepository(context) }
@@ -134,8 +136,14 @@ fun LibraryRoute(
                     title = stashString(R.string.library_dashboard_title),
                     supporting = stashString(R.string.library_dashboard_subtitle),
                     icon = Icons.Outlined.PlayCircleOutline,
-                    showDivider = false,
                     onClick = onOpenDashboard,
+                )
+                StashListRow(
+                    title = stashString(R.string.downloads_title),
+                    supporting = stashString(R.string.downloads_library_subtitle),
+                    icon = Icons.Outlined.Download,
+                    showDivider = false,
+                    onClick = onOpenDownloads,
                 )
             }
 

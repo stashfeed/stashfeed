@@ -45,9 +45,16 @@ class StashServerAdminClient(private val client: StashGraphQlClient) {
         graphQlData(client.executeRaw(RELOAD_PLUGINS_MUTATION))
     }
 
-    /** Queues a plugin task; returns the job ID. */
-    suspend fun runPluginTask(pluginId: String, taskName: String): String = jobIdOf(
-        client.executeRaw(RUN_PLUGIN_TASK_MUTATION, mapOf("pluginId" to pluginId, "taskName" to taskName)),
+    /** Queues a plugin task, with arguments when given (Stash 0.25+); returns the job ID. */
+    suspend fun runPluginTask(pluginId: String, taskName: String, args: Map<String, Any?>? = null): String = jobIdOf(
+        if (args == null) {
+            client.executeRaw(RUN_PLUGIN_TASK_MUTATION, mapOf("pluginId" to pluginId, "taskName" to taskName))
+        } else {
+            client.executeRaw(
+                RUN_PLUGIN_TASK_WITH_ARGS_MUTATION,
+                mapOf("pluginId" to pluginId, "taskName" to taskName, "args" to args.filterValues { it != null }),
+            )
+        },
         "runPluginTask",
     )
 
@@ -124,6 +131,12 @@ class StashServerAdminClient(private val client: StashGraphQlClient) {
         val RUN_PLUGIN_TASK_MUTATION = """
             mutation RunPluginTask(${'$'}pluginId: ID!, ${'$'}taskName: String!) {
               runPluginTask(plugin_id: ${'$'}pluginId, task_name: ${'$'}taskName)
+            }
+        """
+
+        val RUN_PLUGIN_TASK_WITH_ARGS_MUTATION = """
+            mutation RunPluginTaskWithArgs(${'$'}pluginId: ID!, ${'$'}taskName: String!, ${'$'}args: Map) {
+              runPluginTask(plugin_id: ${'$'}pluginId, task_name: ${'$'}taskName, args_map: ${'$'}args)
             }
         """
 
