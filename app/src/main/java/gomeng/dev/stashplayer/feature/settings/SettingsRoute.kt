@@ -740,6 +740,7 @@ fun SettingsDetailRoute(
     onUpdateNoticeChange: (AppUpdateNotice?) -> Unit = {},
     onNavigateBack: () -> Unit,
     onOpenOnboarding: () -> Unit,
+    onOpenDownloads: () -> Unit = {},
 ) {
     SettingsScreenScaffold(
         title = stringResource(section.title),
@@ -748,7 +749,7 @@ fun SettingsDetailRoute(
     ) {
         when (section) {
             SettingsSection.Server -> ServerSettingsContent(onOpenOnboarding = onOpenOnboarding)
-            SettingsSection.Tasks -> ServerTasksContent()
+            SettingsSection.Tasks -> ServerTasksContent(onOpenDownloads = onOpenDownloads)
             SettingsSection.Security -> SecuritySettingsContent()
             SettingsSection.Playback -> PlaybackSettingsContent()
             SettingsSection.Appearance -> AppearanceSettingsContent()

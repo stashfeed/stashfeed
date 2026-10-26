@@ -333,9 +333,11 @@ fun StashNavHost(
 
     // A link shared to Stashfeed opens Downloads, which takes it from the inbox.
     val sharedLinks by StashShareInbox.pending.collectAsState()
-    LaunchedEffect(sharedLinks, savedProfile) {
-        if (sharedLinks.isNotEmpty() && savedProfile != null && currentRoute != DownloadsRoutePath) {
-            navController.navigate(DownloadsRoutePath) { launchSingleTop = true }
+    val downloadsRequested by StashShareInbox.downloadsRequested.collectAsState()
+    LaunchedEffect(sharedLinks, downloadsRequested, savedProfile) {
+        if ((sharedLinks.isNotEmpty() || downloadsRequested) && savedProfile != null) {
+            if (currentRoute != DownloadsRoutePath) navController.navigate(DownloadsRoutePath) { launchSingleTop = true }
+            StashShareInbox.downloadsShown()
         }
     }
 
@@ -825,6 +827,7 @@ fun StashNavHost(
                             isFoldLikeLayout = isFoldLikeLayout,
                             onBack = { if (!navController.popBackStack()) navigateTopLevel(TopLevelDestination.Home) },
                             onOpenScene = ::showPlayer,
+                            onOpenGallery = { galleryId -> navController.navigate(galleryDetailRouteForGallery(galleryId)) },
                         )
                     }
                     composable(GalleryRoutePath) {
@@ -905,6 +908,7 @@ fun StashNavHost(
                                     }
                                 },
                                 onOpenOnboarding = { navController.navigate(SetupResetRoute) },
+                                onOpenDownloads = { navController.navigate(DownloadsRoutePath) { launchSingleTop = true } },
                             )
                         }
                     }

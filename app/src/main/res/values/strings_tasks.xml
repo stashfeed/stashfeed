@@ -84,4 +84,10 @@
         <item quantity="one">%d link error</item>
         <item quantity="other">%d link errors</item>
     </plurals>
+    <string name="settings_tasks_downloads_idle">Nothing is downloading right now.</string>
+    <string name="settings_tasks_downloads_open">Open downloads</string>
+    <plurals name="settings_tasks_downloads_active">
+        <item quantity="one">%d download in progress.</item>
+        <item quantity="other">%d downloads in progress.</item>
+    </plurals>
 </resources>

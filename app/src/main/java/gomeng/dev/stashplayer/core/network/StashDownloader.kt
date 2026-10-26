@@ -42,6 +42,9 @@ data class DownloaderSettings(
     val ytdlpPath: String?,
     val httpProxy: String?,
     val quality: String?,
+    val createPerformers: Boolean = false,
+    val createTags: Boolean = false,
+    val createStudios: Boolean = false,
 )
 
 class StashDownloaderClient(
@@ -57,12 +60,18 @@ class StashDownloaderClient(
             ytdlpPath = settings.optNullableString("ytdlpPath"),
             httpProxy = settings.optNullableString("httpProxy"),
             quality = settings.optNullableString("downloadQuality"),
+            createPerformers = settings.optBoolean("autoCreatePerformers", false),
+            createTags = settings.optBoolean("autoCreateTags", false),
+            createStudios = settings.optBoolean("autoCreateStudios", false),
         )
     }
 
-    /** Where downloads go: the plugin's download path, else the first library that takes videos, as the plugin does. */
-    suspend fun outputDir(settings: DownloaderSettings): String =
-        settings.downloadPath ?: parseVideoLibraryPath(client.executeRaw(LIBRARIES_QUERY)) ?: StashDownloaderPlugin.DEFAULT_OUTPUT_DIR
+    /**
+     * Where downloads go: the plugin's download path, else the first library that takes videos (or images, for
+     * [images]), as the plugin does.
+     */
+    suspend fun outputDir(settings: DownloaderSettings, images: Boolean = false): String =
+        settings.downloadPath ?: parseLibraryPath(client.executeRaw(LIBRARIES_QUERY), images) ?: StashDownloaderPlugin.DEFAULT_OUTPUT_DIR
 
     suspend fun extractMetadata(url: String, settings: DownloaderSettings): DownloaderMetadata =
         parseDownloaderMetadata(operation(mapOf("mode" to "extract_metadata", "url" to url, "proxy" to settings.httpProxy, "ytdlp_path" to settings.ytdlpPath)))
@@ -83,6 +92,7 @@ class StashDownloaderClient(
             "mode" to "download",
             "url" to url,
             "output_dir" to outputDir,
+            // Pass no title for images: they keep the name from their URL, a title would get the extension ".mp4".
             "filename" to title?.takeIf { it.isNotBlank() },
             "quality" to quality,
             "result_id" to resultId,
@@ -108,15 +118,6 @@ class StashDownloaderClient(
         client.executeRaw(FIND_SCENE_BY_PATH_QUERY, mapOf("path" to path)),
     ).optJSONObject("findScenes")?.optJSONArray("scenes")?.optJSONObject(0)?.optNullableString("id")
 
-    suspend fun updateScene(sceneId: String, title: String?, url: String) {
-        val input = buildMap<String, Any?> {
-            put("id", sceneId)
-            title?.takeIf { it.isNotBlank() }?.let { put("title", it) }
-            put("urls", listOf(url))
-        }
-        graphQlData(client.executeRaw(SCENE_UPDATE_MUTATION, mapOf("input" to input)))
-    }
-
     private suspend fun readResult(resultId: String): JSONObject = operation(mapOf("mode" to "read_result", "result_id" to resultId))
 
     private suspend fun operation(args: Map<String, Any?>): JSONObject =
@@ -124,7 +125,7 @@ class StashDownloaderClient(
 
     private companion object {
         val LIBRARIES_QUERY = """
-            query DownloaderLibraries { configuration { general { stashes { path excludeVideo } } } }
+            query DownloaderLibraries { configuration { general { stashes { path excludeVideo excludeImage } } } }
         """
 
         val FIND_SCENE_BY_PATH_QUERY = """
@@ -134,20 +135,14 @@ class StashDownloaderClient(
               }
             }
         """
-
-        val SCENE_UPDATE_MUTATION = """
-            mutation DownloaderSceneUpdate(${'$'}input: SceneUpdateInput!) {
-              sceneUpdate(input: ${'$'}input) { id }
-            }
-        """
     }
 }
 
-internal fun parseVideoLibraryPath(json: String): String? {
+internal fun parseLibraryPath(json: String, images: Boolean): String? {
     val stashes = graphQlData(json).optJSONObject("configuration")?.optJSONObject("general")?.optJSONArray("stashes") ?: return null
     return (0 until stashes.length())
         .mapNotNull { stashes.optJSONObject(it) }
-        .firstOrNull { !it.optBoolean("excludeVideo", false) }
+        .firstOrNull { !it.optBoolean(if (images) "excludeImage" else "excludeVideo", false) }
         ?.optNullableString("path")
 }
 

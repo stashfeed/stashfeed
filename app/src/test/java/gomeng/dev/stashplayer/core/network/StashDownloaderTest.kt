@@ -52,8 +52,9 @@ class StashDownloaderTest {
 
     @Test
     fun videoLibraryIsTheFirstThatTakesVideos() {
-        val json = """{"data":{"configuration":{"general":{"stashes":[{"path":"/images","excludeVideo":true},{"path":"/videos","excludeVideo":false}]}}}}"""
-        assertEquals("/videos", parseVideoLibraryPath(json))
+        val json = """{"data":{"configuration":{"general":{"stashes":[{"path":"/images","excludeVideo":true},{"path":"/videos","excludeVideo":false,"excludeImage":true}]}}}}"""
+        assertEquals("/videos", parseLibraryPath(json, images = false))
+        assertEquals("/images", parseLibraryPath(json, images = true))
     }
 
     @Test

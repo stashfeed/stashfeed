@@ -16,6 +16,19 @@ object StashShareInbox {
     }
 
     fun take(): List<String> = _pending.value.also { _pending.value = emptyList() }
+
+    private val _downloadsRequested = MutableStateFlow(false)
+
+    /** True after a download notification was tapped, until the app has shown the Downloads screen. */
+    val downloadsRequested: StateFlow<Boolean> = _downloadsRequested.asStateFlow()
+
+    fun requestDownloads() {
+        _downloadsRequested.value = true
+    }
+
+    fun downloadsShown() {
+        _downloadsRequested.value = false
+    }
 }
 
 private val SHARED_URL = Regex("""https?://[^\s<>"']+""")

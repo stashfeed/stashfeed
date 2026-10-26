@@ -2,7 +2,7 @@
 <resources>
     <!-- Downloads through the Stash Downloader plugin, and the share target that opens them. -->
     <string name="downloads_title">Downloads</string>
-    <string name="downloads_library_subtitle">Download videos to your server from a link or the share menu</string>
+    <string name="downloads_library_subtitle">Download videos, images and Reddit galleries to your server</string>
     <string name="downloads_share_label">Download to Stash</string>
     <string name="downloads_plugin_missing">Install and enable the Stash Downloader plugin on your Stash server to download videos from links. You find it on github.com/Codename-11/Stash-Downloader.</string>
     <string name="downloads_new_title">New download</string>
@@ -41,4 +41,24 @@
         <item quantity="one">Download %d</item>
         <item quantity="other">Download %d</item>
     </plurals>
+    <string name="downloads_retry">Retry</string>
+    <string name="downloads_download_anyway">Download anyway</string>
+    <string name="downloads_already_in_library">Already in your library.</string>
+    <string name="downloads_kind_image">Image</string>
+    <string name="downloads_kind_gallery">Gallery</string>
+    <string name="downloads_image_progress">Image %1$d of %2$d</string>
+    <plurals name="downloads_image_count">
+        <item quantity="one">%d image</item>
+        <item quantity="other">%d images</item>
+    </plurals>
+    <string name="downloads_channel_progress">Downloads in progress</string>
+    <string name="downloads_channel_done">Finished downloads</string>
+    <plurals name="downloads_notification_running">
+        <item quantity="one">Downloading to Stash</item>
+        <item quantity="other">Downloading %d items to Stash</item>
+    </plurals>
+    <string name="downloads_notification_done">Added to your library</string>
+    <string name="downloads_notification_duplicate">Already in your library</string>
+    <string name="downloads_notification_failed">Download failed</string>
+    <string name="downloads_phase_interrupted_short">Interrupted</string>
 </resources>

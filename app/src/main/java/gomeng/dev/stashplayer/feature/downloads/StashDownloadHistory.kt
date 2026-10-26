@@ -32,7 +32,10 @@ internal fun encodeDownloadHistory(downloads: List<StashDownload>): String = JSO
                 .put("thumbnailUrl", download.thumbnailUrl)
                 .put("createdAt", download.createdAt)
                 .put("phase", download.phase.name)
+                .put("kind", download.kind.name)
                 .put("sceneId", download.sceneId)
+                .put("imageId", download.imageId)
+                .put("galleryId", download.galleryId)
                 .put("error", download.error),
         )
     }
@@ -51,7 +54,10 @@ internal fun decodeDownloadHistory(json: String?): List<StashDownload> {
             thumbnailUrl = text("thumbnailUrl"),
             createdAt = item.optLong("createdAt"),
             phase = runCatching { DownloadPhase.valueOf(text("phase").orEmpty()) }.getOrDefault(DownloadPhase.Interrupted),
+            kind = runCatching { DownloadKind.valueOf(text("kind").orEmpty()) }.getOrDefault(DownloadKind.Video),
             sceneId = text("sceneId"),
+            imageId = text("imageId"),
+            galleryId = text("galleryId"),
             error = text("error"),
         )
     }

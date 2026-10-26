@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
@@ -34,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import gomeng.dev.stashplayer.R
 import gomeng.dev.stashplayer.core.debug.StashDebugLogBuffer
@@ -51,6 +53,10 @@ import gomeng.dev.stashplayer.core.network.StashScanOptions
 import gomeng.dev.stashplayer.core.network.StashServerAdminClient
 import gomeng.dev.stashplayer.core.network.StashServerDirectory
 import gomeng.dev.stashplayer.core.network.StashSettingsRepository
+import gomeng.dev.stashplayer.core.network.StashDownloaderPlugin
+import gomeng.dev.stashplayer.feature.downloads.DownloadPhase
+import gomeng.dev.stashplayer.feature.downloads.DownloadThumbnail
+import gomeng.dev.stashplayer.feature.downloads.StashDownloads
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -62,7 +68,7 @@ import kotlinx.coroutines.launch
 
 /** Settings › Server tasks: Stash's job queue, library tasks, plugins and the Reddit Stash Agent. */
 @Composable
-internal fun ServerTasksContent() {
+internal fun ServerTasksContent(onOpenDownloads: () -> Unit = {}) {
     val context = LocalContext.current
     val repository = remember(context) { StashSettingsRepository(context) }
     val savedProfile by repository.savedServerProfile.collectAsState(initial = null)
@@ -404,6 +410,9 @@ internal fun ServerTasksContent() {
     if (adminClient != null && plugins.orEmpty().any { it.id == RedditStashAgent.PLUGIN_ID && it.enabled }) {
         RedditAgentCard(adminClient = adminClient, onJobStarted = refreshJobs)
     }
+    if (plugins.orEmpty().any { it.id == StashDownloaderPlugin.PLUGIN_ID && it.enabled }) {
+        DownloadsCard(onOpenDownloads = onOpenDownloads)
+    }
     PluginsCard(
         adminClient = adminClient,
         plugins = plugins,
@@ -705,6 +714,63 @@ private fun PluginRow(
             }
         }
     }
+}
+
+/** The Stash Downloader's downloads at a glance: what runs now and the latest ones, with the way to the full list. */
+@Composable
+private fun DownloadsCard(onOpenDownloads: () -> Unit) {
+    val context = LocalContext.current
+    LaunchedEffect(Unit) { StashDownloads.attach(context) }
+    val downloads by StashDownloads.items.collectAsState()
+    val active = downloads.count { it.active }
+    SettingsCard {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(stringResource(R.string.downloads_title), style = MaterialTheme.typography.titleMedium)
+            Text(
+                if (active > 0) pluralStringResource(R.plurals.settings_tasks_downloads_active, active, active)
+                else stringResource(R.string.settings_tasks_downloads_idle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            downloads.take(3).forEach { download ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    DownloadThumbnail(download.thumbnailUrl, Modifier.width(72.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(download.title ?: download.url, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            stringResource(download.phase.shortLabel()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (download.phase == DownloadPhase.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (download.active) {
+                            val percent = download.progress?.percentage
+                            if (percent != null) {
+                                LinearProgressIndicator(progress = { percent / 100f }, modifier = Modifier.fillMaxWidth())
+                            } else {
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            }
+                        }
+                    }
+                }
+            }
+            Button(onClick = onOpenDownloads, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_tasks_downloads_open)) }
+        }
+    }
+}
+
+private fun DownloadPhase.shortLabel(): Int = when (this) {
+    DownloadPhase.Starting -> R.string.downloads_phase_starting
+    DownloadPhase.Queued -> R.string.downloads_phase_queued
+    DownloadPhase.Downloading -> R.string.downloads_phase_downloading
+    DownloadPhase.Importing -> R.string.downloads_phase_importing
+    DownloadPhase.Done -> R.string.downloads_phase_done
+    DownloadPhase.AlreadyInLibrary -> R.string.downloads_already_in_library
+    DownloadPhase.Failed -> R.string.downloads_phase_failed
+    DownloadPhase.Cancelled -> R.string.downloads_phase_cancelled
+    DownloadPhase.Interrupted -> R.string.downloads_phase_interrupted_short
 }
 
 /** How often the Reddit Agent card refreshes its status: quickly during a sync, slowly otherwise. */
