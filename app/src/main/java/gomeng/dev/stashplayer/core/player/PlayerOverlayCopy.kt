@@ -90,6 +90,8 @@ enum class PlayerExpandedStashAction {
     StashTag,
     OCounter,
     MoreDetails,
+    /** Opens the scene editor (watch page only). */
+    Edit,
 }
 
 enum class PlayerExpandedStashActionVisualState {

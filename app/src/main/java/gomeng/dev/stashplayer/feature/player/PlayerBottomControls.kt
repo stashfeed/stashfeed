@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Bookmarks
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LockOpen
@@ -427,6 +428,7 @@ private fun PlayerExpandedStashActionRow(
                         PlayerExpandedStashAction.OCounter -> ({})
                         PlayerExpandedStashAction.MoreDetails -> onOpenDetails
                         PlayerExpandedStashAction.Rating -> ({})
+                        PlayerExpandedStashAction.Edit -> ({})
                     },
                 )
             }
@@ -440,19 +442,16 @@ private fun PlayerExpandedStashActionChip(
     onClick: () -> Unit,
 ) {
     val shape = RoundedCornerShape(percent = 50)
-    val accentColor = when (item.action) {
-        PlayerExpandedStashAction.Queue -> StashColors.QueueAction
-        PlayerExpandedStashAction.Favorite -> StashColors.FavoriteAction
-        PlayerExpandedStashAction.WatchLater -> StashColors.WatchLaterAction
-        PlayerExpandedStashAction.StashTag -> StashColors.Primary
-        PlayerExpandedStashAction.OCounter -> StashColors.Warning
-        PlayerExpandedStashAction.MoreDetails -> StashColors.TextPrimary
-        PlayerExpandedStashAction.Rating -> StashColors.Warning
+    // One accent: an action only gets color while it is on (favorite, in the queue, …); the rest stays neutral.
+    val accentColor = if (item.visualState == PlayerExpandedStashActionVisualState.Active) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        StashColors.TextPrimary
     }
     val containerColor = when (item.visualState) {
         PlayerExpandedStashActionVisualState.Active -> accentColor.copy(alpha = 0.24f)
         PlayerExpandedStashActionVisualState.Disabled -> Color.White.copy(alpha = 0.07f)
-        PlayerExpandedStashActionVisualState.Loading -> StashColors.Primary.copy(alpha = 0.18f)
+        PlayerExpandedStashActionVisualState.Loading -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
         PlayerExpandedStashActionVisualState.Error -> StashColors.Error.copy(alpha = 0.20f)
         PlayerExpandedStashActionVisualState.Inactive -> Color.White.copy(alpha = 0.09f)
     }
@@ -490,6 +489,7 @@ private fun PlayerExpandedStashActionChip(
                 PlayerExpandedStashAction.OCounter -> Icons.Outlined.Star
                 PlayerExpandedStashAction.MoreDetails -> Icons.Outlined.MoreHoriz
                 PlayerExpandedStashAction.Rating -> Icons.Outlined.Star
+                PlayerExpandedStashAction.Edit -> Icons.Outlined.Edit
             },
             contentDescription = null,
             tint = accentColor.copy(alpha = contentAlpha),

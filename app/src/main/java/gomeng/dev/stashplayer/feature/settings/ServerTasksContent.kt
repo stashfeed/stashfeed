@@ -14,6 +14,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -492,34 +493,66 @@ private fun LibraryTasksCard(adminClient: StashServerAdminClient?, onJobStarted:
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(stringResource(R.string.settings_tasks_library_title), style = MaterialTheme.typography.titleMedium)
-            Button(
-                onClick = {
-                    val client = adminClient ?: return@Button
+            // Occasional tasks: rows with a line on what they do, so the scan above stays the one main action.
+            Column {
+                TaskRow(
+                    title = stringResource(R.string.settings_tasks_generate),
+                    description = stringResource(R.string.settings_tasks_generate_short),
+                    action = stringResource(R.string.settings_tasks_start),
+                    enabled = adminClient != null && !busy,
+                    showDivider = false,
+                ) {
+                    val client = adminClient ?: return@TaskRow
                     busy = true
                     coroutineScope.launch {
                         generateOptions = runCatching { client.generateDefaults() }.getOrDefault(StashGenerateOptions())
                         busy = false
                     }
-                },
-                enabled = adminClient != null && !busy,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.settings_tasks_generate)) }
-            Button(
-                onClick = { confirm = LibraryTask.AutoTag },
-                enabled = adminClient != null && !busy,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.settings_tasks_auto_tag)) }
-            OutlinedButton(
-                onClick = { confirm = LibraryTask.Clean },
-                enabled = adminClient != null && !busy,
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text(stringResource(R.string.settings_tasks_clean)) }
+                }
+                TaskRow(
+                    title = stringResource(R.string.settings_tasks_auto_tag),
+                    description = stringResource(R.string.settings_tasks_auto_tag_short),
+                    action = stringResource(R.string.settings_tasks_start),
+                    enabled = adminClient != null && !busy,
+                ) { confirm = LibraryTask.AutoTag }
+                TaskRow(
+                    title = stringResource(R.string.settings_tasks_clean),
+                    description = stringResource(R.string.settings_tasks_clean_short),
+                    action = stringResource(R.string.settings_tasks_start),
+                    enabled = adminClient != null && !busy,
+                ) { confirm = LibraryTask.Clean }
+            }
             Text(
                 statusText ?: stringResource(R.string.settings_tasks_library_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             errorText?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
+        }
+    }
+}
+
+/** A task that is started less often: what it is and does, with a text button instead of a filled one. */
+@Composable
+private fun TaskRow(
+    title: String,
+    description: String,
+    action: String,
+    enabled: Boolean,
+    showDivider: Boolean = true,
+    onClick: () -> Unit,
+) {
+    Column {
+        if (showDivider) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.bodyLarge)
+                Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            TextButton(onClick = onClick, enabled = enabled) { Text(action) }
         }
     }
 }
@@ -1030,13 +1063,14 @@ private fun ServerLibrarySettingsCard(
             ) {
                 Text(stringResource(R.string.settings_server_scan_all_button))
             }
-            Button(
-                onClick = onRequestSelectiveScan,
+            TaskRow(
+                title = stringResource(R.string.settings_server_selective_scan_button),
+                description = stringResource(R.string.settings_tasks_selective_scan_short),
+                action = stringResource(R.string.settings_tasks_choose),
                 enabled = controlsEnabled && !scanning,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.settings_server_selective_scan_button))
-            }
+                showDivider = false,
+                onClick = onRequestSelectiveScan,
+            )
             TextButton(
                 onClick = { onScanOptionsExpandedChange(!scanOptionsExpanded) },
                 enabled = controlsEnabled,

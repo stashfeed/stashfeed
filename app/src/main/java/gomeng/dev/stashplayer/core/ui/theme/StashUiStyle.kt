@@ -3,6 +3,7 @@ package gomeng.dev.stashplayer.core.ui.theme
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -26,12 +27,11 @@ enum class StashUiStyle(val persistedValue: String) {
     }
 }
 
-val StashBrandPink = Color(0xFFF472B6)
 val StashBrandPurple = Color(0xFFB26BFF)
-val StashBrandBlue = Color(0xFF6AA9FF)
 
-/** Pink → purple → blue: logo, story rings, progress bars in Social Dark. */
-val StashBrandGradient: Brush = Brush.linearGradient(listOf(StashBrandPink, StashBrandPurple, StashBrandBlue))
+/** The highest surface step, so a seen ring stays visible on the canvas without drawing attention. */
+private val StashStorySeenRing = Color(0xFF34343F)
+
 
 /** Layout tokens that differ between the two styles; read with [LocalStashStyleTokens]. */
 @Immutable
@@ -45,7 +45,10 @@ data class StashStyleTokens(
     val feedMediaRadius: Dp,
     val feedPostGap: Dp,
     val showFeedDividers: Boolean,
+    /** Ring of a story with posts not seen yet: the accent, as it is the one thing that asks to be tapped. */
     val storyRing: Brush,
+    /** Ring of a story whose posts were all seen. */
+    val storySeenRing: Brush,
     /** Bottom navigation: Material's pill indicator vs. Social's plain icons. */
     val navUsesPill: Boolean,
 ) {
@@ -60,7 +63,8 @@ fun stashStyleTokens(primary: Color): StashStyleTokens = StashStyleTokens(
     feedMediaRadius = 0.dp,
     feedPostGap = 6.dp,
     showFeedDividers = true,
-    storyRing = StashBrandGradient,
+    storyRing = SolidColor(primary),
+    storySeenRing = SolidColor(StashStorySeenRing),
     navUsesPill = true,
 )
 

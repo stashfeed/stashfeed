@@ -1,5 +1,6 @@
 package gomeng.dev.stashplayer.app.navigation
 
+import gomeng.dev.stashplayer.core.network.EditableKind
 import androidx.annotation.StringRes
 import gomeng.dev.stashplayer.R
 import gomeng.dev.stashplayer.core.player.PlaybackOrientationMode
@@ -72,6 +73,11 @@ internal fun playerRouteForScene(sceneId: String): String =
 
 internal fun galleryDetailRouteForGallery(galleryId: String): String =
     "gallery/${galleryId.encodeRouteSegment()}"
+
+/** The editor for a scene, gallery or image. */
+internal const val EditItemRoutePattern = "edit/{kind}/{itemId}"
+
+internal fun editItemRoute(kind: EditableKind, id: String): String = "edit/${kind.name}/${id.encodeRouteSegment()}"
 
 internal const val PerformerProfileRoutePattern = "performer/{performerId}"
 

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Editing scenes, galleries and images, with the server's scrapers. -->
+    <string name="edit_action">Edit</string>
+    <string name="edit_title_scene">Edit scene</string>
+    <string name="edit_title_gallery">Edit gallery</string>
+    <string name="edit_title_image">Edit image</string>
+    <string name="edit_save">Save</string>
+    <string name="edit_saving">Saving…</string>
+    <string name="edit_load_failed">Could not load it from Stash.</string>
+    <string name="edit_save_failed">Could not save the changes.</string>
+    <string name="edit_discard_title">Discard changes?</string>
+    <string name="edit_discard_message">Your changes haven\'t been saved.</string>
+    <string name="edit_discard">Discard</string>
+    <string name="edit_keep_editing">Keep editing</string>
+
+    <string name="edit_field_title">Title</string>
+    <string name="edit_field_date">Date</string>
+    <string name="edit_field_code">Studio code</string>
+    <string name="edit_field_director">Director</string>
+    <string name="edit_field_photographer">Photographer</string>
+    <string name="edit_field_rating">Rating</string>
+    <string name="edit_rating_stars">%1$d stars</string>
+    <string name="edit_field_organized">Organized</string>
+    <string name="edit_field_studio">Studio</string>
+    <string name="edit_field_performers">Performers</string>
+    <string name="edit_field_tags">Tags</string>
+    <string name="edit_field_urls">Links</string>
+    <string name="edit_field_details">Details</string>
+    <string name="edit_new_cover">New cover image</string>
+    <string name="edit_choose">Choose</string>
+    <string name="edit_add">Add</string>
+    <string name="edit_add_url">Add link</string>
+    <string name="edit_remove">Remove</string>
+    <string name="edit_none">None</string>
+    <string name="edit_new_entity">%1$s · new</string>
+
+    <string name="edit_pick_studio">Choose a studio</string>
+    <string name="edit_pick_performers">Add performers</string>
+    <string name="edit_pick_tags">Add tags</string>
+    <string name="edit_search">Search</string>
+    <string name="edit_create_entity">Create \"%1$s\"</string>
+
+    <string name="edit_scrape">Scrape</string>
+    <string name="edit_scrape_url">Link to scrape</string>
+    <string name="edit_scrape_url_hint">A scraper that knows this site reads the page.</string>
+    <string name="edit_scrape_url_match">%1$s can read this link.</string>
+    <string name="edit_scrape_run">Scrape</string>
+    <string name="edit_scrape_query">Search for</string>
+    <string name="edit_scrape_no_scrapers">No scrapers on your server can search for this. Install scrapers in Stash under Settings → Metadata Providers.</string>
+    <string name="edit_scrape_stash_box">Stash-box</string>
+    <string name="edit_scrape_this_scene">This scene</string>
+    <string name="edit_scrape_this_gallery">This gallery</string>
+    <string name="edit_scrape_this_image">This image</string>
+    <string name="edit_scrape_search">Search</string>
+    <string name="edit_scrape_nothing">The scraper found nothing.</string>
+    <string name="edit_scrape_pick_result">Several matches. Pick one:</string>
+    <string name="edit_scrape_back">Back</string>
+    <string name="edit_scrape_no_changes">Everything the scraper found is already there.</string>
+    <string name="edit_scrape_cover_found">The scraper found a cover image.</string>
+    <string name="edit_scrape_current">Now: %1$s</string>
+    <string name="edit_scrape_apply">Use selected</string>
+    <plurals name="edit_unsaved_changes">
+        <item quantity="one">%d change not saved</item>
+        <item quantity="other">%d changes not saved</item>
+    </plurals>
+</resources>

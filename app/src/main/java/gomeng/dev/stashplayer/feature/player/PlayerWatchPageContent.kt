@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.Star
@@ -119,6 +120,7 @@ fun PlayerWatchPageContent(
     onOpenStashTag: () -> Unit,
     onToggleFavorite: () -> Unit,
     onToggleWatchLater: () -> Unit,
+    onEdit: () -> Unit,
     onPlaySimilarScene: (String) -> Unit,
     onAddSimilarSceneToQueue: (String) -> Unit,
     onRetrySimilarRecommendations: () -> Unit,
@@ -184,6 +186,7 @@ fun PlayerWatchPageContent(
                             onToggleFavorite = onToggleFavorite,
                             onToggleWatchLater = onToggleWatchLater,
                             onOpenDetails = { detailsDialogOpen = true },
+                            onEdit = onEdit,
                         )
                     }
                     SceneWatchPageSection.RatingControls -> PlayerWatchPageRatingControlsSurface(
@@ -354,6 +357,7 @@ private fun PlayerWatchPageActionRow(
     onToggleFavorite: () -> Unit,
     onToggleWatchLater: () -> Unit,
     onOpenDetails: () -> Unit,
+    onEdit: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -373,6 +377,7 @@ private fun PlayerWatchPageActionRow(
                     PlayerExpandedStashAction.OCounter -> onIncrementOCounter
                     PlayerExpandedStashAction.MoreDetails -> onOpenDetails
                     PlayerExpandedStashAction.Rating -> ({})
+                    PlayerExpandedStashAction.Edit -> onEdit
                 },
             )
         }
@@ -384,27 +389,24 @@ private fun PlayerWatchPageActionChip(
     item: PlayerExpandedStashActionRowItem,
     onClick: () -> Unit,
 ) {
-    val accentColor = when (item.action) {
-        PlayerExpandedStashAction.Queue -> StashColors.QueueAction
-        PlayerExpandedStashAction.Favorite -> StashColors.FavoriteAction
-        PlayerExpandedStashAction.WatchLater -> StashColors.WatchLaterAction
-        PlayerExpandedStashAction.StashTag -> StashColors.Primary
-        PlayerExpandedStashAction.OCounter -> StashColors.Warning
-        PlayerExpandedStashAction.MoreDetails -> StashColors.TextSecondary
-        PlayerExpandedStashAction.Rating -> StashColors.Warning
+    // One accent: an action only gets color while it is on (favorite, in the queue, …); the rest stays neutral.
+    val accentColor = if (item.visualState == PlayerExpandedStashActionVisualState.Active) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
     }
     val shape = RoundedCornerShape(percent = 50)
     val containerColor = when (item.visualState) {
         PlayerExpandedStashActionVisualState.Active -> accentColor.copy(alpha = 0.20f)
         PlayerExpandedStashActionVisualState.Disabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f)
-        PlayerExpandedStashActionVisualState.Loading -> StashColors.Primary.copy(alpha = 0.18f)
+        PlayerExpandedStashActionVisualState.Loading -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
         PlayerExpandedStashActionVisualState.Error -> StashColors.Error.copy(alpha = 0.18f)
         // Tonal pills like everywhere else; only an active state gets a colored edge.
         PlayerExpandedStashActionVisualState.Inactive -> MaterialTheme.colorScheme.surfaceContainer
     }
     val borderColor = when (item.visualState) {
         PlayerExpandedStashActionVisualState.Active -> accentColor.copy(alpha = 0.56f)
-        PlayerExpandedStashActionVisualState.Loading -> StashColors.Primary.copy(alpha = 0.44f)
+        PlayerExpandedStashActionVisualState.Loading -> MaterialTheme.colorScheme.primary.copy(alpha = 0.44f)
         PlayerExpandedStashActionVisualState.Error -> StashColors.Error.copy(alpha = 0.48f)
         else -> Color.Transparent
     }
@@ -413,7 +415,7 @@ private fun PlayerWatchPageActionChip(
     val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier
-            .stashPressScale(interaction, 0.94f)
+            .stashPressScale(interaction)
             .clip(shape)
             .background(containerColor)
             .border(width = 1.dp, color = borderColor, shape = shape)
@@ -464,6 +466,7 @@ private fun PlayerExpandedStashAction.watchPageIcon(
     PlayerExpandedStashAction.OCounter -> Icons.Outlined.Whatshot
     PlayerExpandedStashAction.MoreDetails -> Icons.Outlined.Info
     PlayerExpandedStashAction.Rating -> Icons.Outlined.Star
+    PlayerExpandedStashAction.Edit -> Icons.Outlined.Edit
 }
 
 @Composable

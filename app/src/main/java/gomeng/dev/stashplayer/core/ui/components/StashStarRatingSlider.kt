@@ -129,12 +129,12 @@ private fun StashStarRatingSliderButton(
     val buttonContainer = when (fillState) {
         PlayerStarFillState.Empty -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.92f)
         PlayerStarFillState.Half,
-        PlayerStarFillState.Full -> Color(0xFFFACC15).copy(alpha = 0.18f)
+        PlayerStarFillState.Full -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
     }
     val borderColor = when (fillState) {
         PlayerStarFillState.Empty -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.78f)
         PlayerStarFillState.Half,
-        PlayerStarFillState.Full -> Color(0xFFFACC15).copy(alpha = 0.48f)
+        PlayerStarFillState.Full -> MaterialTheme.colorScheme.primary.copy(alpha = 0.48f)
     }
     Box(
         modifier = Modifier
@@ -161,7 +161,7 @@ private fun StashStarRatingSliderButton(
             tint = if (fillState == PlayerStarFillState.Empty) {
                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f)
             } else {
-                Color(0xFFFACC15)
+                MaterialTheme.colorScheme.primary
             },
             modifier = Modifier.size(34.dp),
         )

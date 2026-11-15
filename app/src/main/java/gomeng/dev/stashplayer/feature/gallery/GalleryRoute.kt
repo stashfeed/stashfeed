@@ -49,6 +49,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.AlertDialog
@@ -1390,6 +1391,7 @@ fun GalleryDetailRoute(
     onOpenGallery: (String) -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    onEditGallery: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val settingsRepository = remember(context) { StashSettingsRepository(context) }
@@ -1508,6 +1510,7 @@ fun GalleryDetailRoute(
         onOpenScene = onOpenScene,
         onOpenGallery = onOpenGallery,
         onOpenSettings = onOpenSettings,
+        onEditGallery = { onEditGallery(galleryId) },
     )
 }
 
@@ -1520,6 +1523,7 @@ fun GalleryPhotoViewerOverlay(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenLinkedGallery: (String) -> Unit = {},
+    onEditImage: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val settingsRepository = remember(context) { StashSettingsRepository(context) }
@@ -2088,6 +2092,9 @@ fun GalleryPhotoViewerOverlay(
                         contentDescription = stringResource(R.string.gallery_photo_viewer_details_content_description),
                         tint = Color.White,
                     )
+                }
+                IconButton(onClick = { activeImage?.id?.let(onEditImage) }, enabled = activeImage != null) {
+                    Icon(imageVector = Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_title_image), tint = Color.White)
                 }
             }
         }
@@ -2716,6 +2723,7 @@ private fun GalleryDetailContent(
     onOpenScene: (String) -> Unit,
     onOpenGallery: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onEditGallery: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val horizontalPadding = if (isFoldLikeLayout) StashSpacing.ScreenHorizontalExpanded else StashSpacing.ScreenHorizontalCompact
@@ -2748,6 +2756,11 @@ private fun GalleryDetailContent(
             navigation = {
                 IconButton(onClick = onNavigateBack) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.settings_back_button))
+                }
+            },
+            actions = {
+                IconButton(onClick = onEditGallery, enabled = serverProfile != null) {
+                    Icon(Icons.Outlined.Edit, contentDescription = stringResource(R.string.edit_title_gallery))
                 }
             },
         )

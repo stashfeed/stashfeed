@@ -173,7 +173,7 @@ private fun StashStatePanel(
     val ring = if (isError) {
         androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error.copy(alpha = 0.6f))
     } else {
-        gomeng.dev.stashplayer.core.ui.theme.StashBrandGradient
+        androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
     }
     Column(
         modifier = modifier

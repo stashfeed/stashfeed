@@ -10,6 +10,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
@@ -66,10 +67,16 @@ fun <T> stashSpring(): FiniteAnimationSpec<T> =
 fun <T> stashBouncySpring(): FiniteAnimationSpec<T> =
     spring(dampingRatio = StashMotion.SpringDampingBouncy, stiffness = StashMotion.SpringStiffnessFast)
 
-/** Shrinks slightly while pressed and springs back, the press feel used on cards, chips and actions. */
-fun Modifier.stashPressScale(interactionSource: MutableInteractionSource, pressedScale: Float = 0.96f): Modifier = composed {
+/** Ease-out that settles fast: quick to react, no overshoot. */
+private val StashPressEasing = CubicBezierEasing(0.23f, 1f, 0.32f, 1f)
+
+/**
+ * Shrinks slightly while pressed, the press feel used on cards, chips and actions. 0.97 in 150 ms with ease-out
+ * and no bounce: it confirms the touch without drawing attention to itself.
+ */
+fun Modifier.stashPressScale(interactionSource: MutableInteractionSource, pressedScale: Float = 0.97f): Modifier = composed {
     val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) pressedScale else 1f, stashBouncySpring(), label = "pressScale")
+    val scale by animateFloatAsState(if (pressed) pressedScale else 1f, tween(durationMillis = 150, easing = StashPressEasing), label = "pressScale")
     graphicsLayer {
         scaleX = scale
         scaleY = scale
@@ -301,7 +308,7 @@ fun StashTonalPill(
         color = container,
         contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
         interactionSource = interaction,
-        modifier = modifier.stashPressScale(interaction, 0.92f),
+        modifier = modifier.stashPressScale(interaction),
     ) {
         Row(
             modifier = Modifier.height(36.dp).padding(horizontal = 12.dp),

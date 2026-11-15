@@ -142,6 +142,8 @@ import gomeng.dev.stashplayer.feature.gallery.GalleryRoute
 import gomeng.dev.stashplayer.feature.feed.FeedLightbox
 import gomeng.dev.stashplayer.feature.feed.FeedLightboxRequest
 import gomeng.dev.stashplayer.feature.feed.HomeFeedRoute
+import gomeng.dev.stashplayer.feature.edit.EditItemRoute
+import gomeng.dev.stashplayer.core.network.EditableKind
 import gomeng.dev.stashplayer.feature.downloads.DownloadsRoute
 import gomeng.dev.stashplayer.feature.downloads.StashShareInbox
 import gomeng.dev.stashplayer.feature.home.HomeRoute
@@ -867,7 +869,20 @@ fun StashNavHost(
                             },
                             onOpenGallery = { linkedGalleryId -> navController.navigate(galleryDetailRouteForGallery(linkedGalleryId)) },
                             onOpenSettings = { navigateSecondary(SettingsDestinations.Root) },
+                            onEditGallery = { editedGalleryId -> navController.navigate(editItemRoute(EditableKind.Gallery, editedGalleryId)) },
                         )
+                    }
+                    composable(EditItemRoutePattern) { backStackEntry ->
+                        val kind = backStackEntry.arguments?.getString("kind")?.let { name -> EditableKind.entries.firstOrNull { it.name == name } }
+                        val itemId = backStackEntry.arguments?.getString("itemId").orEmpty()
+                        if (kind != null && itemId.isNotEmpty()) {
+                            EditItemRoute(
+                                kind = kind,
+                                id = itemId,
+                                isFoldLikeLayout = isFoldLikeLayout,
+                                onBack = { if (!navController.popBackStack()) navigateTopLevel(TopLevelDestination.Home) },
+                            )
+                        }
                     }
                     composable(QueueRoutePath) {
                         QueueRoute(
@@ -946,6 +961,10 @@ fun StashNavHost(
                             playerMinimized = true
                             navController.navigate(SettingsDestinations.Root)
                         },
+                        onEditScene = { editedSceneId ->
+                            playerMinimized = true
+                            navController.navigate(editItemRoute(EditableKind.Scene, editedSceneId))
+                        },
                         onExitPlayer = ::exitPlayer,
                         onPlaylistDrawerOpen = ::ensurePlaylistTrailingItems,
                         minimized = playerMinimized,
@@ -989,6 +1008,10 @@ fun StashNavHost(
                     onOpenLinkedGallery = { galleryId ->
                         activeGalleryPhotoViewer = null
                         navController.navigate(galleryDetailRouteForGallery(galleryId))
+                    },
+                    onEditImage = { imageId ->
+                        activeGalleryPhotoViewer = null
+                        navController.navigate(editItemRoute(EditableKind.Image, imageId))
                     },
                 )
             }

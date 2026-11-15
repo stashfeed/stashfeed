@@ -43,7 +43,6 @@ import gomeng.dev.stashplayer.feature.security.rememberDeviceAuthenticationAvail
 import gomeng.dev.stashplayer.feature.security.rememberDeviceAuthenticationLauncher
 import kotlinx.coroutines.launch
 import gomeng.dev.stashplayer.R
-import gomeng.dev.stashplayer.core.ui.theme.StashBrandGradient
 import gomeng.dev.stashplayer.core.ui.designsystem.StashSpace
 import gomeng.dev.stashplayer.core.ui.designsystem.StashRadius
 import androidx.compose.ui.text.style.TextAlign
@@ -57,6 +56,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.stringResource
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
@@ -139,7 +139,7 @@ fun ServerSetupRoute(
             .padding(horizontal = if (isFoldLikeLayout) StashSpace.XXL else StashSpace.L, vertical = StashSpace.XL),
         verticalArrangement = Arrangement.spacedBy(StashSpace.L),
     ) {
-        // Welcome: the mark in a brand ring, a name and one line on what happens next.
+        // Welcome: the mark, a name and one line on what happens next.
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = StashSpace.L, bottom = StashSpace.S),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -148,9 +148,8 @@ fun ServerSetupRoute(
             Box(
                 modifier = Modifier
                     .size(84.dp)
-                    .background(StashBrandGradient, CircleShape)
-                    .padding(3.dp)
-                    .background(MaterialTheme.colorScheme.surfaceContainer, CircleShape),
+                    .background(MaterialTheme.colorScheme.surfaceContainer, CircleShape)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Image(painter = painterResource(R.drawable.ic_stashfeed_mark), contentDescription = null, modifier = Modifier.size(44.dp))

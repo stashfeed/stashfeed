@@ -90,4 +90,9 @@
         <item quantity="one">%d download in progress.</item>
         <item quantity="other">%d downloads in progress.</item>
     </plurals>
+    <string name="settings_tasks_choose">Choose</string>
+    <string name="settings_tasks_generate_short">Previews, sprites, covers and hashes</string>
+    <string name="settings_tasks_auto_tag_short">Match names in file paths</string>
+    <string name="settings_tasks_clean_short">Remove entries of missing files</string>
+    <string name="settings_tasks_selective_scan_short">Scan only the folders you pick</string>
 </resources>

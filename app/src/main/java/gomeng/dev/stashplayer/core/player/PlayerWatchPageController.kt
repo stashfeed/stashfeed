@@ -289,6 +289,12 @@ object PlayerWatchPageController {
                     updating = oCounterUpdating,
                 )
             },
+            PlayerExpandedStashActionRowItem(
+                action = PlayerExpandedStashAction.Edit,
+                label = stashString(R.string.edit_action),
+                contentDescription = stashString(R.string.edit_title_scene),
+                visualState = PlayerExpandedStashActionVisualState.Inactive,
+            ),
         )
     }
 

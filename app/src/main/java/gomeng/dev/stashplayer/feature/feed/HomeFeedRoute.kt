@@ -284,6 +284,7 @@ fun HomeFeedRoute(
                                 stories = feed.stories,
                                 serverProfile = profile,
                                 ring = tokens,
+                                seenKeys = viewModel.seenSnapshot,
                                 onOpenStory = { index -> viewModel.openStoryIndex = index },
                             )
                         }
@@ -543,6 +544,7 @@ private fun StoriesRow(
     stories: List<HomeStory>,
     serverProfile: StashServerProfile?,
     ring: StashStyleTokens,
+    seenKeys: Set<String>,
     onOpenStory: (Int) -> Unit,
 ) {
     LazyRow(
@@ -566,7 +568,14 @@ private fun StoriesRow(
                         shape = CircleShape,
                         modifier = Modifier
                             .size(68.dp)
-                            .border(BorderStroke(2.5.dp, ring.storyRing), CircleShape)
+                            // Accent while the performer has posts not seen yet, a quiet ring once all were seen.
+                            .border(
+                                BorderStroke(
+                                    2.5.dp,
+                                    if (story.scenes.all { "scene:${it.scene.id}" in seenKeys }) ring.storySeenRing else ring.storyRing,
+                                ),
+                                CircleShape,
+                            )
                             .padding(4.5.dp)
                             .clip(CircleShape),
                     )
@@ -703,7 +712,7 @@ private fun ActionChip(
     Row(
         modifier = Modifier
             .heightIn(min = 36.dp)
-            .stashPressScale(interaction, 0.92f)
+            .stashPressScale(interaction)
             .clip(RoundedCornerShape(50))
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .combinedClickable(
@@ -871,7 +880,7 @@ private fun SceneActionBar(
                 Icon(
                     if (stars > 0f) Icons.Filled.Star else Icons.Outlined.StarBorder,
                     contentDescription = null,
-                    tint = if (stars > 0f) StashColors.Star else MaterialTheme.colorScheme.onSurface,
+                    tint = if (stars > 0f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(18.dp),
                 )
             },

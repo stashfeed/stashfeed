@@ -1,6 +1,7 @@
 package gomeng.dev.stashplayer.feature.library
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,7 +51,6 @@ import gomeng.dev.stashplayer.core.ui.designsystem.StashSpacing
 import gomeng.dev.stashplayer.core.ui.designsystem.StashTopBar
 import gomeng.dev.stashplayer.core.ui.designsystem.stashPressScale
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
-import gomeng.dev.stashplayer.core.ui.theme.StashBrandGradient
 import gomeng.dev.stashplayer.feature.settings.SettingsListCopy
 import gomeng.dev.stashplayer.feature.settings.SettingsSection
 
@@ -98,8 +98,9 @@ fun LibraryRoute(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(StashSpace.L)) {
                 Box(
-                    modifier = Modifier.size(56.dp).background(StashBrandGradient, CircleShape).padding(2.5.dp)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape),
+                    modifier = Modifier.size(56.dp)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(

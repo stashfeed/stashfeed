@@ -1,6 +1,7 @@
 package gomeng.dev.stashplayer.core.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,7 +19,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import gomeng.dev.stashplayer.R
 import gomeng.dev.stashplayer.core.ui.i18n.stashString
-import gomeng.dev.stashplayer.core.ui.theme.StashBrandGradient
 
 /** What the avatar in the top bars shows and opens: the "You" page with library and settings. */
 @Immutable
@@ -42,8 +42,7 @@ fun StashAvatarButton(modifier: Modifier = Modifier) {
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier
                 .size(34.dp)
-                .background(StashBrandGradient, CircleShape)
-                .padding(2.dp)
+                .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                 .semantics { contentDescription = label },
         ) {
             Box(contentAlignment = Alignment.Center) {
